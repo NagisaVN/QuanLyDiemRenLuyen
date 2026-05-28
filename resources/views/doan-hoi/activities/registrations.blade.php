@@ -1,0 +1,61 @@
+@extends('layouts.doan-hoi')
+
+@section('page-title', 'Duyệt đăng ký')
+
+@section('content')
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="table-card">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Sinh viên</th><th>Lớp</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+                    <tbody>
+                        @forelse ($registrations as $registration)
+                            <tr>
+                                <td>{{ $registration->sinhVien->ho_ten }}<div class="small text-secondary">{{ $registration->sinhVien->ma_sinh_vien }}</div></td>
+                                <td>{{ $registration->sinhVien->lop->ten_lop }}</td>
+                                <td><span class="badge text-bg-info">{{ config('ui.statuses.' . $registration->trang_thai, $registration->trang_thai) }}</span></td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ route('doan-hoi.registrations.approve', $registration) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="trang_thai" value="approved">
+                                        <button class="btn btn-sm btn-success">Duyệt</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('doan-hoi.registrations.approve', $registration) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="trang_thai" value="rejected">
+                                        <button class="btn btn-sm btn-outline-danger">Từ chối</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="text-center text-secondary py-4">Chưa có đăng ký.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="mt-3">{{ $registrations->links() }}</div>
+    </div>
+    <div class="col-xl-4">
+        <div class="table-card p-3 mb-3">
+            <h2 class="h5">Điểm danh thủ công</h2>
+            <form method="POST" action="{{ route('doan-hoi.activities.attendance', $hoatDong) }}" class="vstack gap-2">
+                @csrf
+                <input class="form-control" name="ma_sinh_vien" placeholder="Mã sinh viên">
+                <button class="btn btn-primary">Điểm danh</button>
+            </form>
+        </div>
+        <div class="table-card p-3">
+            <h2 class="h5">Cộng/trừ điểm đặc biệt</h2>
+            <form method="POST" action="{{ route('doan-hoi.activities.manual-adjust', $hoatDong) }}" class="vstack gap-2">
+                @csrf
+                <input class="form-control" name="ma_sinh_vien" placeholder="Mã sinh viên">
+                <input class="form-control" type="number" name="points" placeholder="Điểm +/-">
+                <textarea class="form-control" name="reason" rows="2" placeholder="Lý do"></textarea>
+                <button class="btn btn-outline-primary">Ghi nhận</button>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
