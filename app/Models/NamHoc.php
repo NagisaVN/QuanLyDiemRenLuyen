@@ -25,4 +25,9 @@ class NamHoc extends Model
     {
         return $this->hasMany(HocKy::class);
     }
+
+    public function dotDanhGias()
+    {
+        return $this->hasMany(DotDanhGia::class);
+    }
 }

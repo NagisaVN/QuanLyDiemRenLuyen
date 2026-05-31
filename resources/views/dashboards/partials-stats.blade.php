@@ -97,9 +97,9 @@
     </div>
 </div>
 
-<div class="card card-danger table-card mb-4">
+<div class="card card-primary table-card mb-4">
     <div class="card-header">
-        <h3 class="card-title mb-0">Biểu đồ Donut</h3>
+        <h3 class="card-title mb-0">Tỷ lệ xếp loại điểm rèn luyện</h3>
         <div class="card-tools">
             <button type="button" class="btn btn-tool" data-card-widget="collapse" aria-label="Thu gọn">
                 <i class="fas fa-minus"></i>
@@ -120,13 +120,18 @@
 <script>
 const rankLabels = @json(array_keys($rankGroups));
 const rankData = @json(array_values($rankGroups));
+const hasRankData = rankLabels.length > 0 && rankData.length > 0;
 new Chart(document.getElementById('rankChart'), {
     type: 'doughnut',
     data: {
-        labels: rankLabels.length ? rankLabels : ['Chưa có dữ liệu'],
+        labels: hasRankData ? rankLabels : ['Chưa có dữ liệu'],
         datasets: [{
-            data: rankData.length ? rankData : [1],
-            backgroundColor: ['#f56954', '#00a65a', '#f39c12', '#00c0ef', '#3c8dbc', '#d2d6de']
+            data: hasRankData ? rankData : [1],
+            backgroundColor: hasRankData
+                ? ['#2563eb', '#059669', '#f59e0b', '#0ea5e9', '#7c3aed', '#64748b']
+                : ['#cbd5e1'],
+            borderColor: '#ffffff',
+            borderWidth: 2
         }]
     },
     options: {

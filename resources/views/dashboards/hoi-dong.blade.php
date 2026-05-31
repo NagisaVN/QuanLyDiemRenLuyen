@@ -1,6 +1,6 @@
 @extends('layouts.hoi-dong')
 
-@section('page-title', 'Bảng điều khiển Hội đồng/Khoa')
+@section('page-title', 'Bảng điều khiển Công Tác Sinh Viên')
 
 @section('content')
     @include('dashboards.partials-stats')

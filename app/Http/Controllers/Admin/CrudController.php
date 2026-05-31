@@ -17,6 +17,8 @@ use App\Models\ThongBao;
 use App\Models\TieuChi;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
@@ -49,13 +51,23 @@ class CrudController extends Controller
     {
         $config = $this->config($module);
         $data = $this->validated($request, $config);
+        $roleNames = $this->selectedRoleNames($request);
+        $studentData = $this->studentProfileData($request, null, null, $roleNames);
 
-        if ($config['model'] === User::class) {
-            $data['password'] = Hash::make($data['password'] ?? 'password');
-        }
+        $item = DB::transaction(function () use ($request, $config, $data, $roleNames, $studentData) {
+            if ($config['model'] === User::class) {
+                $data['password'] = Hash::make($data['password'] ?? 'password');
 
-        $item = $config['model']::create($data);
-        $this->syncExtras($request, $item);
+                if ($roleNames->contains('sinh_vien') && blank($data['ma_dang_nhap'] ?? null)) {
+                    $data['ma_dang_nhap'] = $studentData['ma_sinh_vien'];
+                }
+            }
+
+            $item = $config['model']::create($data);
+            $this->syncExtras($request, $item, $roleNames, $studentData);
+
+            return $item;
+        });
 
         return redirect()->route('admin.crud.index', $module)->with('status', 'Đã tạo dữ liệu.');
     }
@@ -86,17 +98,25 @@ class CrudController extends Controller
         $config = $this->config($module);
         $item = $config['model']::findOrFail($id);
         $data = $this->validated($request, $config, $id);
+        $roleNames = $this->selectedRoleNames($request);
+        $studentData = $this->studentProfileData($request, $item instanceof User ? $item : null, $item instanceof User ? $item->sinhVien : null, $roleNames);
 
-        if ($config['model'] === User::class) {
-            if (blank($data['password'] ?? null)) {
-                unset($data['password']);
-            } else {
-                $data['password'] = Hash::make($data['password']);
+        DB::transaction(function () use ($request, $config, $item, $data, $roleNames, $studentData) {
+            if ($config['model'] === User::class) {
+                if (blank($data['password'] ?? null)) {
+                    unset($data['password']);
+                } else {
+                    $data['password'] = Hash::make($data['password']);
+                }
+
+                if ($roleNames->contains('sinh_vien') && blank($data['ma_dang_nhap'] ?? null)) {
+                    $data['ma_dang_nhap'] = $studentData['ma_sinh_vien'];
+                }
             }
-        }
 
-        $item->update($data);
-        $this->syncExtras($request, $item);
+            $item->update($data);
+            $this->syncExtras($request, $item, $roleNames, $studentData);
+        });
 
         return redirect()->route('admin.crud.index', $module)->with('status', 'Đã cập nhật dữ liệu.');
     }
@@ -119,6 +139,11 @@ class CrudController extends Controller
             $rules[$name] = $field['rules'] ?? ['nullable'];
         }
 
+        if (($config['model'] ?? null) === User::class) {
+            $rules['email'] = ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)];
+            $rules['ma_dang_nhap'] = ['nullable', 'string', 'max:50', Rule::unique('users', 'ma_dang_nhap')->ignore($id)];
+        }
+
         $data = $request->validate($rules);
 
         foreach ($config['fields'] as $name => $field) {
@@ -134,10 +159,60 @@ class CrudController extends Controller
         return $data;
     }
 
-    private function syncExtras(Request $request, mixed $item): void
+    private function selectedRoleNames(Request $request): Collection
+    {
+        return Role::whereIn('id', $request->input('roles', []))->pluck('name');
+    }
+
+    private function studentProfileData(Request $request, ?User $user, ?SinhVien $sinhVien, Collection $roleNames): array
+    {
+        if (! $roleNames->contains('sinh_vien')) {
+            return [];
+        }
+
+        $data = $request->validate([
+            'student.lop_id' => ['required', 'exists:lops,id'],
+            'student.ma_sinh_vien' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('sinh_viens', 'ma_sinh_vien')->ignore($sinhVien?->id),
+                Rule::unique('users', 'ma_dang_nhap')->ignore($user?->id),
+            ],
+            'student.ho_ten' => ['nullable', 'string', 'max:255'],
+            'student.ngay_sinh' => ['nullable', 'date'],
+            'student.gioi_tinh' => ['nullable', 'string', 'max:20'],
+            'student.so_dien_thoai' => ['nullable', 'string', 'max:30'],
+            'student.dia_chi' => ['nullable', 'string', 'max:255'],
+            'student.trang_thai' => ['required', Rule::in(['dang_hoc', 'bao_luu', 'da_tot_nghiep'])],
+        ]);
+
+        return $data['student'];
+    }
+
+    private function syncExtras(Request $request, mixed $item, ?Collection $roleNames = null, array $studentData = []): void
     {
         if ($item instanceof User) {
-            $item->syncRoles(Role::whereIn('id', $request->input('roles', []))->pluck('name')->all());
+            $roleNames ??= $this->selectedRoleNames($request);
+            $item->syncRoles($roleNames->all());
+
+            if ($roleNames->contains('sinh_vien')) {
+                $studentData = array_filter([
+                    ...$studentData,
+                    'user_id' => $item->id,
+                    'ho_ten' => filled($studentData['ho_ten'] ?? null) ? $studentData['ho_ten'] : $item->name,
+                    'trang_thai' => $studentData['trang_thai'] ?? 'dang_hoc',
+                ], fn ($value) => $value !== null);
+
+                $profile = SinhVien::withTrashed()->updateOrCreate(
+                    ['user_id' => $item->id],
+                    $studentData
+                );
+
+                if ($profile->trashed()) {
+                    $profile->restore();
+                }
+            }
         }
 
         if ($item instanceof HoatDong) {
@@ -157,7 +232,7 @@ class CrudController extends Controller
                 'roles' => ['label' => 'Vai trò', 'type' => 'roles'],
             ]],
             'roles' => ['title' => 'Vai trò', 'model' => Role::class, 'columns' => ['name', 'guard_name'], 'fields' => [
-                'name' => ['label' => 'Tên vai trò', 'rules' => ['required', 'string', 'max:255']],
+                'name' => ['label' => 'Tên vai trò', 'type' => 'select', 'options' => 'role_codes', 'rules' => ['required', Rule::in(array_keys(config('ui.roles', [])))]],
                 'guard_name' => ['label' => 'Cổng xác thực', 'type' => 'select', 'options' => 'guards', 'rules' => ['required', Rule::in(['web'])]],
             ]],
             'permissions' => ['title' => 'Phân quyền', 'model' => Permission::class, 'columns' => ['name', 'guard_name'], 'fields' => [
@@ -287,6 +362,8 @@ class CrudController extends Controller
             'sinh_vien_statuses' => collect(['dang_hoc', 'bao_luu', 'da_tot_nghiep'])->mapWithKeys(fn (string $status) => [$status => config("ui.statuses.$status", $status)]),
             'minh_chung_statuses' => collect(['pending', 'approved', 'rejected'])->mapWithKeys(fn (string $status) => [$status => config("ui.statuses.$status", $status)]),
             'hoat_dong_statuses' => collect(['draft', 'open', 'closed', 'cancelled'])->mapWithKeys(fn (string $status) => [$status => config("ui.statuses.$status", $status)]),
+            'role_codes' => collect(config('ui.roles', [])),
+            'role_names' => Role::pluck('name', 'id'),
             'roles' => Role::pluck('name', 'id')->map(fn (string $name) => config("ui.roles.$name", $name)),
         ];
     }

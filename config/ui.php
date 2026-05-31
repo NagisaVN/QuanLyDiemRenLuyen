@@ -156,7 +156,7 @@ return [
         'sinh_vien' => 'Sinh viên',
         'gvcn' => 'GVCN/Cố vấn',
         'can_bo_doan_hoi' => 'Cán bộ Đoàn - Hội',
-        'hoi_dong_khoa' => 'Hội đồng/Khoa',
+        'hoi_dong_khoa' => 'Công Tác Sinh Viên',
     ],
 
     'permissions' => [

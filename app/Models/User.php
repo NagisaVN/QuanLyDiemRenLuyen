@@ -37,6 +37,16 @@ class User extends Authenticatable
         return $this->hasMany(Lop::class, 'gvcn_id');
     }
 
+    public function dotDanhGiasCreated()
+    {
+        return $this->hasMany(DotDanhGia::class, 'created_by');
+    }
+
+    public function dotDanhGiasUpdated()
+    {
+        return $this->hasMany(DotDanhGia::class, 'updated_by');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

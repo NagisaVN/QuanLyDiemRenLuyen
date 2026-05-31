@@ -34,4 +34,9 @@ class HocKy extends Model
     {
         return $this->hasMany(PhieuDanhGia::class);
     }
+
+    public function dotDanhGias()
+    {
+        return $this->hasMany(DotDanhGia::class);
+    }
 }

@@ -1,6 +1,6 @@
 @extends('layouts.shell')
 
-@section('layout-title', 'Hội đồng/Khoa')
+@section('layout-title', 'Công Tác Sinh Viên')
 @section('nav')
     <li class="nav-item">
         <a class="nav-link {{ request()->routeIs('hoi-dong.dashboard') ? 'active' : '' }}" href="{{ route('hoi-dong.dashboard') }}">

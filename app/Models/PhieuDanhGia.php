@@ -38,6 +38,11 @@ class PhieuDanhGia extends Model
         return $this->belongsTo(HocKy::class);
     }
 
+    public function dotDanhGia()
+    {
+        return $this->belongsTo(DotDanhGia::class);
+    }
+
     public function chiTietDanhGias()
     {
         return $this->hasMany(ChiTietDanhGia::class);
