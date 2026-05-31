@@ -3,18 +3,42 @@
 @section('page-title', 'Phiếu tự đánh giá')
 
 @section('content')
+@php
+    $dot = $phieu->dotDanhGia;
+    $deadlinePassed = $dot?->ngay_ket_thuc_sinh_vien && now()->greaterThan($dot->ngay_ket_thuc_sinh_vien);
+    $deadlineText = $dot?->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i');
+    $showReviewedScores = $phieu->diem_gvcn !== null || $phieu->diem_hoi_dong !== null || $phieu->diem_cuoi !== null || in_array($phieu->trang_thai, ['reviewed', 'approved', 'locked'], true);
+@endphp
+
 <div class="row g-4">
     <div class="col-xl-8">
         <form id="evaluation-form" method="POST" action="{{ route('sinh-vien.evaluations.update') }}" class="table-card p-3">
             @csrf
             @method('PUT')
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                 <div>
-                    <h2 class="h5 mb-0">{{ $phieu->hocKy->ten_hoc_ky }}</h2>
-                    <div class="text-secondary small">Trạng thái: <span class="badge text-bg-info">{{ config('ui.statuses.' . $phieu->trang_thai, $phieu->trang_thai) }}</span></div>
+                    <h2 class="h5 mb-1">{{ $phieu->hocKy->ten_hoc_ky }}</h2>
+                    <div class="text-secondary small">
+                        Trạng thái phiếu:
+                        <span class="badge text-bg-info">{{ config('ui.statuses.' . $phieu->trang_thai, $phieu->trang_thai) }}</span>
+                    </div>
+                    @if ($dot)
+                        <div class="text-secondary small mt-1">
+                            Đợt: {{ $dot->ten_dot }} · Hạn nộp: {{ $deadlineText }}
+                        </div>
+                    @endif
                 </div>
-                <a class="btn btn-outline-secondary" href="{{ route('sinh-vien.evaluations.print') }}"><i class="bi bi-printer me-1"></i>In phiếu</a>
+                <a class="btn btn-outline-secondary" href="{{ route('sinh-vien.evaluations.print') }}">
+                    <i class="bi bi-printer me-1"></i>In phiếu
+                </a>
             </div>
+
+            @if (! $canEdit)
+                <div class="alert alert-warning">
+                    {{ $deadlinePassed ? 'Đã hết thời hạn nộp phiếu đánh giá.' : 'Phiếu đã được duyệt, đã khóa hoặc không còn trong thời gian chỉnh sửa.' }}
+                </div>
+            @endif
+
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead class="table-light">
@@ -22,10 +46,18 @@
                             <th>Tiêu chí</th>
                             <th style="width: 140px">Tối đa</th>
                             <th style="width: 170px">Điểm tự chấm</th>
+                            @if ($showReviewedScores)
+                                <th style="width: 130px">GVCN</th>
+                                <th style="width: 170px">Công Tác Sinh Viên</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($phieu->chiTietDanhGias->sortBy('tieuChi.thu_tu') as $detail)
+                            @php
+                                $gvcnScore = $detail->diem_gvcn ?? ($phieu->diem_gvcn !== null ? $detail->diem_tu_cham : null);
+                                $ctsvScore = $detail->diem_hoi_dong ?? (($phieu->diem_hoi_dong !== null || $phieu->diem_cuoi !== null) ? ($gvcnScore ?? $detail->diem_tu_cham) : null);
+                            @endphp
                             <tr>
                                 <td>
                                     <div class="fw-semibold">{{ $detail->tieuChi->ten_tieu_chi }}</div>
@@ -35,6 +67,10 @@
                                 <td>
                                     <input class="form-control" type="number" min="0" max="{{ $detail->tieuChi->diem_toi_da }}" name="scores[{{ $detail->tieu_chi_id }}]" value="{{ old('scores.'.$detail->tieu_chi_id, $detail->diem_tu_cham) }}" @disabled(! $canEdit)>
                                 </td>
+                                @if ($showReviewedScores)
+                                    <td>{{ $gvcnScore ?? '-' }}</td>
+                                    <td>{{ $ctsvScore ?? '-' }}</td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -46,18 +82,18 @@
             </div>
         </form>
         <div class="d-flex gap-2 flex-wrap mt-3">
-                <button class="btn btn-primary" type="submit" form="evaluation-form" @disabled(! $canEdit)>Lưu phiếu</button>
-                <form method="POST" action="{{ route('sinh-vien.evaluations.submit') }}">
-                    @csrf
-                    <button class="btn btn-success" type="submit" @disabled(! $canEdit)>Nộp phiếu</button>
-                </form>
+            <button class="btn btn-primary" type="submit" form="evaluation-form" @disabled(! $canEdit)>Lưu phiếu</button>
+            <form method="POST" action="{{ route('sinh-vien.evaluations.submit') }}">
+                @csrf
+                <button class="btn btn-success" type="submit" @disabled(! $canEdit)>Nộp phiếu</button>
+            </form>
         </div>
     </div>
 
     <div class="col-xl-4">
         <div class="table-card p-3 mb-4">
             <h2 class="h5">Tổng điểm</h2>
-            <div class="display-6 text-primary">{{ $phieu->diem_tu_cham }}/100</div>
+            <div class="display-6 text-primary">{{ $phieu->diem_cuoi ?? $phieu->diem_hoi_dong ?? $phieu->diem_gvcn ?? $phieu->diem_tu_cham }}/100</div>
             <div class="text-secondary">Xếp loại: {{ $phieu->xep_loai ?? 'Chưa có' }}</div>
         </div>
         <div class="table-card p-3">

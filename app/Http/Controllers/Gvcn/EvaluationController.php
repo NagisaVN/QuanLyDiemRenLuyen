@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MinhChung;
 use App\Models\PhieuDanhGia;
 use App\Services\DiemRenLuyenService;
+use App\Services\DotDanhGiaService;
 use Illuminate\Http\Request;
 
 class EvaluationController extends Controller
@@ -13,7 +14,7 @@ class EvaluationController extends Controller
     public function index(Request $request)
     {
         $classIds = $request->user()->lopPhuTrachs()->pluck('id');
-        $forms = PhieuDanhGia::with(['sinhVien.lop', 'hocKy'])
+        $forms = PhieuDanhGia::with(['sinhVien.lop', 'hocKy', 'dotDanhGia'])
             ->whereHas('sinhVien', fn ($query) => $query->whereIn('lop_id', $classIds))
             ->latest()
             ->paginate(15);
@@ -21,11 +22,15 @@ class EvaluationController extends Controller
         return view('gvcn.evaluations.index', compact('forms'));
     }
 
-    public function show(Request $request, PhieuDanhGia $phieu)
+    public function show(Request $request, PhieuDanhGia $phieu, DotDanhGiaService $dotService)
     {
         $this->authorizeClass($request, $phieu);
+        $phieu->load(['sinhVien.lop', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'minhChungs']);
 
-        return view('gvcn.evaluations.show', ['phieu' => $phieu->load(['sinhVien.lop', 'hocKy', 'chiTietDanhGias.tieuChi', 'minhChungs'])]);
+        return view('gvcn.evaluations.show', [
+            'phieu' => $phieu,
+            'canReview' => $dotService->openForGvcn($phieu->dotDanhGia),
+        ]);
     }
 
     public function update(Request $request, PhieuDanhGia $phieu, DiemRenLuyenService $service)
@@ -44,6 +49,17 @@ class EvaluationController extends Controller
     public function confirm(Request $request, PhieuDanhGia $phieu, DiemRenLuyenService $service)
     {
         $this->authorizeClass($request, $phieu);
+
+        if ($request->filled('scores')) {
+            $data = $request->validate([
+                'scores' => ['required', 'array'],
+                'nhan_xet_gvcn' => ['nullable', 'string', 'max:2000'],
+            ]);
+
+            $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'gvcn', $data['nhan_xet_gvcn'] ?? null);
+            $phieu->refresh();
+        }
+
         $service->confirmGvcn($phieu, $request->user(), $request->input('nhan_xet_gvcn'));
 
         return back()->with('status', 'Đã xác nhận phiếu cấp GVCN.');

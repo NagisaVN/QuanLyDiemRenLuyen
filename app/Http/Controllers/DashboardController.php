@@ -9,6 +9,7 @@ use App\Models\PhieuDanhGia;
 use App\Models\SinhVien;
 use App\Services\DiemRenLuyenService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class DashboardController extends Controller
 {
@@ -33,12 +34,22 @@ class DashboardController extends Controller
     public function sinhVien(Request $request, DiemRenLuyenService $service)
     {
         $sinhVien = $request->user()->sinhVien;
-        $phieu = $sinhVien ? $service->ensurePhieu($sinhVien) : null;
+        $phieu = null;
+        $evaluationMessage = null;
+
+        if ($sinhVien) {
+            try {
+                $phieu = $service->ensurePhieu($sinhVien);
+            } catch (ValidationException $exception) {
+                $evaluationMessage = collect($exception->errors())->flatten()->first();
+            }
+        }
 
         return view('dashboards.sinh-vien', [
             ...$this->stats(),
             'sinhVien' => $sinhVien,
             'phieu' => $phieu,
+            'evaluationMessage' => $evaluationMessage,
         ]);
     }
 

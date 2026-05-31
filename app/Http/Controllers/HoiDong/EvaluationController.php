@@ -14,7 +14,7 @@ class EvaluationController extends Controller
 {
     public function index()
     {
-        $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy'])
+        $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia'])
             ->whereIn('trang_thai', ['reviewed', 'approved', 'locked'])
             ->latest()
             ->paginate(20);
@@ -24,7 +24,7 @@ class EvaluationController extends Controller
 
     public function show(PhieuDanhGia $phieu)
     {
-        return view('hoi-dong.evaluations.show', ['phieu' => $phieu->load(['sinhVien.lop.khoa', 'hocKy', 'chiTietDanhGias.tieuChi', 'minhChungs'])]);
+        return view('hoi-dong.evaluations.show', ['phieu' => $phieu->load(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'minhChungs'])]);
     }
 
     public function update(Request $request, PhieuDanhGia $phieu, DiemRenLuyenService $service)
@@ -41,6 +41,16 @@ class EvaluationController extends Controller
 
     public function approve(Request $request, PhieuDanhGia $phieu, DiemRenLuyenService $service)
     {
+        if ($request->filled('scores')) {
+            $data = $request->validate([
+                'scores' => ['required', 'array'],
+                'nhan_xet_hoi_dong' => ['nullable', 'string', 'max:2000'],
+            ]);
+
+            $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'hoi_dong', $data['nhan_xet_hoi_dong'] ?? null);
+            $phieu->refresh();
+        }
+
         $service->approveFinal($phieu, $request->user(), $request->input('nhan_xet_hoi_dong'));
 
         return back()->with('status', 'Đã xác nhận điểm cuối cùng.');

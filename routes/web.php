@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CrudController;
+use App\Http\Controllers\Admin\DotDanhGiaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DoanHoi\ActivityController as DoanHoiActivityController;
 use App\Http\Controllers\Gvcn\EvaluationController as GvcnEvaluationController;
@@ -26,6 +27,36 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::middleware(['auth', 'role:admin|hoi_dong_khoa'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/dot-danh-gia', [DotDanhGiaController::class, 'index'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.index');
+        Route::get('/dot-danh-gia/create', [DotDanhGiaController::class, 'create'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.create');
+        Route::post('/dot-danh-gia', [DotDanhGiaController::class, 'store'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.store');
+        Route::get('/dot-danh-gia/{dotDanhGia}/edit', [DotDanhGiaController::class, 'edit'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.edit');
+        Route::put('/dot-danh-gia/{dotDanhGia}', [DotDanhGiaController::class, 'update'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.update');
+        Route::post('/dot-danh-gia/{dotDanhGia}/open', [DotDanhGiaController::class, 'open'])
+            ->middleware('permission:open_dot_danh_gia')
+            ->name('dot-danh-gia.open');
+        Route::post('/dot-danh-gia/{dotDanhGia}/close', [DotDanhGiaController::class, 'close'])
+            ->middleware('permission:close_dot_danh_gia')
+            ->name('dot-danh-gia.close');
+        Route::post('/dot-danh-gia/{dotDanhGia}/publish', [DotDanhGiaController::class, 'publish'])
+            ->middleware('permission:publish_dot_danh_gia')
+            ->name('dot-danh-gia.publish');
+    });
+
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
     Route::get('/{module}', [CrudController::class, 'index'])->name('crud.index');
@@ -40,9 +71,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 Route::middleware(['auth', 'role:sinh_vien'])->prefix('sinh-vien')->name('sinh-vien.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'sinhVien'])->name('dashboard');
     Route::get('/phieu-danh-gia', [StudentEvaluationController::class, 'index'])->name('evaluations.index');
-    Route::put('/phieu-danh-gia', [StudentEvaluationController::class, 'update'])->name('evaluations.update');
-    Route::post('/phieu-danh-gia/submit', [StudentEvaluationController::class, 'submit'])->name('evaluations.submit');
-    Route::post('/phieu-danh-gia/minh-chung', [StudentEvaluationController::class, 'upload'])->name('evaluations.upload');
+    Route::put('/phieu-danh-gia', [StudentEvaluationController::class, 'update'])->middleware('student.evaluation.period')->name('evaluations.update');
+    Route::post('/phieu-danh-gia/submit', [StudentEvaluationController::class, 'submit'])->middleware('student.evaluation.period')->name('evaluations.submit');
+    Route::post('/phieu-danh-gia/minh-chung', [StudentEvaluationController::class, 'upload'])->middleware('student.evaluation.period')->name('evaluations.upload');
     Route::get('/phieu-danh-gia/lich-su', [StudentEvaluationController::class, 'history'])->name('evaluations.history');
     Route::get('/phieu-danh-gia/in', [StudentEvaluationController::class, 'print'])->name('evaluations.print');
     Route::get('/hoat-dong', [StudentActivityController::class, 'index'])->name('activities.index');
@@ -58,9 +89,9 @@ Route::middleware(['auth', 'role:gvcn'])->prefix('gvcn')->name('gvcn.')->group(f
     Route::get('/dashboard', [DashboardController::class, 'gvcn'])->name('dashboard');
     Route::get('/phieu-danh-gia', [GvcnEvaluationController::class, 'index'])->name('evaluations.index');
     Route::get('/phieu-danh-gia/{phieu}', [GvcnEvaluationController::class, 'show'])->name('evaluations.show');
-    Route::put('/phieu-danh-gia/{phieu}', [GvcnEvaluationController::class, 'update'])->name('evaluations.update');
-    Route::post('/phieu-danh-gia/{phieu}/xac-nhan', [GvcnEvaluationController::class, 'confirm'])->name('evaluations.confirm');
-    Route::post('/minh-chung/{minhChung}/duyet', [GvcnEvaluationController::class, 'reviewEvidence'])->name('evidence.review');
+    Route::put('/phieu-danh-gia/{phieu}', [GvcnEvaluationController::class, 'update'])->middleware('gvcn.review.period')->name('evaluations.update');
+    Route::match(['post', 'put'], '/phieu-danh-gia/{phieu}/xac-nhan', [GvcnEvaluationController::class, 'confirm'])->middleware('gvcn.review.period')->name('evaluations.confirm');
+    Route::post('/minh-chung/{minhChung}/duyet', [GvcnEvaluationController::class, 'reviewEvidence'])->middleware('gvcn.review.period')->name('evidence.review');
 });
 
 Route::middleware(['auth', 'role:can_bo_doan_hoi'])->prefix('doan-hoi')->name('doan-hoi.')->group(function () {
@@ -78,7 +109,7 @@ Route::middleware(['auth', 'role:hoi_dong_khoa'])->prefix('hoi-dong')->name('hoi
     Route::get('/phieu-danh-gia', [HoiDongEvaluationController::class, 'index'])->name('evaluations.index');
     Route::get('/phieu-danh-gia/{phieu}', [HoiDongEvaluationController::class, 'show'])->name('evaluations.show');
     Route::put('/phieu-danh-gia/{phieu}', [HoiDongEvaluationController::class, 'update'])->name('evaluations.update');
-    Route::post('/phieu-danh-gia/{phieu}/xac-nhan', [HoiDongEvaluationController::class, 'approve'])->name('evaluations.approve');
+    Route::match(['post', 'put'], '/phieu-danh-gia/{phieu}/xac-nhan', [HoiDongEvaluationController::class, 'approve'])->name('evaluations.approve');
     Route::post('/phieu-danh-gia/{phieu}/khoa', [HoiDongEvaluationController::class, 'lock'])->name('evaluations.lock');
     Route::get('/export/excel', [HoiDongEvaluationController::class, 'exportExcel'])->name('export.excel');
     Route::get('/export/pdf', [HoiDongEvaluationController::class, 'exportPdf'])->name('export.pdf');

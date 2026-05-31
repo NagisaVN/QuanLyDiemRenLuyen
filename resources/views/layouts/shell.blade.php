@@ -168,7 +168,8 @@
         .text-bg-secondary,
         .text-bg-success,
         .text-bg-warning,
-        .text-bg-danger {
+        .text-bg-danger,
+        .text-bg-dark {
             color: #fff !important;
         }
 
@@ -178,6 +179,7 @@
         .text-bg-success { background-color: #28a745 !important; }
         .text-bg-warning { background-color: #ffc107 !important; color: #1f2937 !important; }
         .text-bg-danger { background-color: #dc3545 !important; }
+        .text-bg-dark { background-color: #343a40 !important; }
 
         .fw-semibold { font-weight: 600 !important; }
         .fw-bold { font-weight: 700 !important; }

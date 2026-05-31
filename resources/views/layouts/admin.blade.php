@@ -29,6 +29,12 @@
             <p>Bảng điều khiển</p>
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('admin.dot-danh-gia.*') ? 'active' : '' }}" href="{{ route('admin.dot-danh-gia.index') }}">
+            <i class="nav-icon fas fa-hourglass-half"></i>
+            <p>Đợt đánh giá</p>
+        </a>
+    </li>
     @foreach ($modules as $module => $item)
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.crud.*') && $currentModule === $module ? 'active' : '' }}" href="{{ route('admin.crud.index', $module) }}">

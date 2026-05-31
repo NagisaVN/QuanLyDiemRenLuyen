@@ -15,7 +15,13 @@ class EvaluationController extends Controller
 {
     public function index(Request $request, DiemRenLuyenService $service)
     {
-        $phieu = $service->ensurePhieu($request->user()->sinhVien);
+        try {
+            $phieu = $service->ensurePhieu($request->user()->sinhVien);
+        } catch (ValidationException $exception) {
+            return view('student.evaluations.closed', [
+                'message' => collect($exception->errors())->flatten()->first() ?: 'Đã hết thời hạn nộp phiếu đánh giá.',
+            ]);
+        }
 
         return view('student.evaluations.form', [
             'phieu' => $phieu,

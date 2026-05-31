@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ChiTietDanhGia;
 use App\Models\DiemRenLuyen;
+use App\Models\DotDanhGia;
 use App\Models\HocKy;
 use App\Models\LichSuChinhSuaDiem;
 use App\Models\PhieuDanhGia;
@@ -42,10 +43,33 @@ class DiemRenLuyenService
             throw ValidationException::withMessages(['hoc_ky' => 'Chưa có học kỳ đang mở.']);
         }
 
+        $dotService = app(DotDanhGiaService::class);
+        $openDot = $dotService->openForStudent($hocKy);
+        $currentDot = $openDot ?? $dotService->current($hocKy);
+        $existingPhieu = PhieuDanhGia::query()
+            ->where('sinh_vien_id', $sinhVien->id)
+            ->where('hoc_ky_id', $hocKy->id)
+            ->first();
+
+        if (! $currentDot) {
+            throw ValidationException::withMessages(['dot_danh_gia' => 'Chưa có đợt đánh giá cho học kỳ hiện tại.']);
+        }
+
+        if (! $openDot && ! $existingPhieu) {
+            throw ValidationException::withMessages(['dot_danh_gia' => 'Đã hết thời hạn nộp phiếu đánh giá.']);
+        }
+
         $phieu = PhieuDanhGia::firstOrCreate(
             ['sinh_vien_id' => $sinhVien->id, 'hoc_ky_id' => $hocKy->id],
-            ['trang_thai' => PhieuDanhGia::STATUS_DRAFT]
+            [
+                'dot_danh_gia_id' => $currentDot->id,
+                'trang_thai' => PhieuDanhGia::STATUS_DRAFT,
+            ]
         );
+
+        if (! $phieu->dot_danh_gia_id) {
+            $phieu->update(['dot_danh_gia_id' => $currentDot->id]);
+        }
 
         TieuChi::query()->where('is_active', true)->orderBy('thu_tu')->get()->each(function (TieuChi $tieuChi) use ($phieu) {
             ChiTietDanhGia::firstOrCreate([
@@ -54,7 +78,7 @@ class DiemRenLuyenService
             ]);
         });
 
-        return $phieu->load(['hocKy', 'sinhVien.lop.khoa', 'chiTietDanhGias.tieuChi', 'minhChungs']);
+        return $phieu->load(['hocKy', 'dotDanhGia', 'sinhVien.lop.khoa', 'chiTietDanhGias.tieuChi', 'minhChungs']);
     }
 
     public function canStudentEdit(PhieuDanhGia $phieu): bool
@@ -63,9 +87,7 @@ class DiemRenLuyenService
             return false;
         }
 
-        $deadline = $phieu->hocKy?->han_tu_danh_gia;
-
-        return ! $deadline || now()->lessThanOrEqualTo($deadline);
+        return app(DotDanhGiaService::class)->canStudentEdit($phieu->loadMissing('dotDanhGia'));
     }
 
     public function saveStudentScores(PhieuDanhGia $phieu, array $scores, ?User $user, ?string $note = null): PhieuDanhGia
@@ -119,8 +141,18 @@ class DiemRenLuyenService
 
     public function saveReviewerScores(PhieuDanhGia $phieu, array $scores, User $user, string $stage, ?string $note = null): PhieuDanhGia
     {
+        $phieu->loadMissing('dotDanhGia');
+
         if ($phieu->trang_thai === PhieuDanhGia::STATUS_LOCKED) {
             throw ValidationException::withMessages(['phieu' => 'Phiếu đã khóa.']);
+        }
+
+        if ($phieu->dotDanhGia?->trang_thai === DotDanhGia::STATUS_PUBLISHED) {
+            throw ValidationException::withMessages(['phieu' => 'Đợt đánh giá đã công bố, không thể chỉnh sửa.']);
+        }
+
+        if ($stage === 'gvcn' && ! app(DotDanhGiaService::class)->openForGvcn($phieu->dotDanhGia)) {
+            throw ValidationException::withMessages(['phieu' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
         }
 
         $field = $stage === 'hoi_dong' ? 'diem_hoi_dong' : 'diem_gvcn';
@@ -148,6 +180,21 @@ class DiemRenLuyenService
 
     public function confirmGvcn(PhieuDanhGia $phieu, User $user, ?string $note = null): PhieuDanhGia
     {
+        $phieu->loadMissing('dotDanhGia');
+
+        if (! app(DotDanhGiaService::class)->openForGvcn($phieu->dotDanhGia)) {
+            throw ValidationException::withMessages(['phieu' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
+        }
+
+        // Nếu GVCN bấm xác nhận khi chưa lưu riêng điểm chi tiết,
+        // dùng điểm tự chấm làm điểm GVCN để cột GVCN không bị trống.
+        $phieu->chiTietDanhGias()
+            ->whereNull('diem_gvcn')
+            ->each(function (ChiTietDanhGia $detail) use ($phieu, $user, $note): void {
+                $this->history($phieu, $detail, $user, 'gvcn', $detail->diem_gvcn, $detail->diem_tu_cham, 'Xác nhận điểm GVCN mặc định', $note);
+                $detail->update(['diem_gvcn' => $detail->diem_tu_cham]);
+            });
+
         $score = (int) ($phieu->diem_gvcn ?? $phieu->diem_tu_cham);
 
         $phieu->update([
@@ -164,12 +211,37 @@ class DiemRenLuyenService
 
     public function approveFinal(PhieuDanhGia $phieu, User $user, ?string $note = null): PhieuDanhGia
     {
-        $rubricScore = (int) ($phieu->diem_hoi_dong ?? $phieu->diem_gvcn ?? $phieu->diem_tu_cham);
+        $phieu->loadMissing('dotDanhGia');
+
+        if ($phieu->dotDanhGia?->trang_thai === DotDanhGia::STATUS_PUBLISHED) {
+            throw ValidationException::withMessages(['phieu' => 'Đợt đánh giá đã công bố, không thể chỉnh sửa.']);
+        }
+
+        $detailCount = 0;
+        $detailTotal = 0;
+        $phieu->chiTietDanhGias()
+            ->with('tieuChi')
+            ->get()
+            ->each(function (ChiTietDanhGia $detail) use ($phieu, $user, $note, &$detailCount, &$detailTotal): void {
+                $detailCount++;
+                $score = (int) ($detail->diem_hoi_dong ?? $detail->diem_gvcn ?? $detail->diem_tu_cham);
+                $score = max(0, min($score, (int) $detail->tieuChi->diem_toi_da));
+
+                if ($detail->diem_hoi_dong === null) {
+                    $this->history($phieu, $detail, $user, 'hoi_dong', $detail->diem_hoi_dong, $score, 'Xác nhận điểm Công Tác Sinh Viên mặc định', $note);
+                    $detail->update(['diem_hoi_dong' => $score]);
+                }
+
+                $detailTotal += $score;
+            });
+
+        $rubricScore = (int) ($phieu->diem_hoi_dong ?? ($detailCount > 0 ? min(100, $detailTotal) : ($phieu->diem_gvcn ?? $phieu->diem_tu_cham)));
         $activityScore = $this->activityScore($phieu->sinhVien, $phieu->hocKy);
         $finalScore = max(0, min(100, $rubricScore + $activityScore));
 
         $phieu->update([
             'trang_thai' => PhieuDanhGia::STATUS_APPROVED,
+            'diem_hoi_dong' => $rubricScore,
             'diem_cuoi' => $finalScore,
             'nhan_xet_hoi_dong' => $note,
             'approved_by' => $user->id,
@@ -185,7 +257,7 @@ class DiemRenLuyenService
                 'diem_hoat_dong' => $activityScore,
                 'xep_loai' => $this->xepLoai($finalScore),
                 'trang_thai' => 'final',
-                'cong_bo_at' => $phieu->hocKy?->ngay_cong_bo,
+                'cong_bo_at' => $phieu->dotDanhGia?->ngay_cong_bo ?? $phieu->hocKy?->ngay_cong_bo,
             ]
         );
 

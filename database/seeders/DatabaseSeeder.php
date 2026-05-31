@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\ChiTietDanhGia;
+use App\Models\DotDanhGia;
 use App\Models\HoatDong;
 use App\Models\HocKy;
 use App\Models\Khoa;
@@ -27,6 +28,7 @@ class DatabaseSeeder extends Seeder
         $permissions = [
             'manage users', 'manage roles', 'manage master data', 'manage activities',
             'self evaluate', 'review class forms', 'approve final scores', 'export reports',
+            'manage_dot_danh_gia', 'open_dot_danh_gia', 'close_dot_danh_gia', 'publish_dot_danh_gia',
         ];
 
         foreach ($permissions as $permission) {
@@ -41,12 +43,19 @@ class DatabaseSeeder extends Seeder
         Role::findByName('sinh_vien')->syncPermissions(['self evaluate']);
         Role::findByName('gvcn')->syncPermissions(['review class forms']);
         Role::findByName('can_bo_doan_hoi')->syncPermissions(['manage activities']);
-        Role::findByName('hoi_dong_khoa')->syncPermissions(['approve final scores', 'export reports']);
+        Role::findByName('hoi_dong_khoa')->syncPermissions([
+            'approve final scores',
+            'export reports',
+            'manage_dot_danh_gia',
+            'open_dot_danh_gia',
+            'close_dot_danh_gia',
+            'publish_dot_danh_gia',
+        ]);
 
         $admin = $this->user('Quản trị hệ thống', 'admin@school.test', 'admin', 'admin');
         $gvcn = $this->user('Nguyễn Văn Cố Vấn', 'gvcn@school.test', 'gvcn01', 'gvcn');
         $doan = $this->user('Trần Thị Đoàn Hội', 'doanhoi@school.test', 'doanhoi01', 'can_bo_doan_hoi');
-        $hoiDong = $this->user('Phạm Minh Hội Đồng', 'hoidong@school.test', 'hoidong01', 'hoi_dong_khoa');
+        $hoiDong = $this->user('Phạm Minh Công Tác', 'ctsv@school.test', 'ctsv01', 'hoi_dong_khoa');
 
         $cntt = Khoa::firstOrCreate(['ma_khoa' => 'CNTT'], ['ten_khoa' => 'Công nghệ thông tin', 'is_active' => true]);
         $qtkd = Khoa::firstOrCreate(['ma_khoa' => 'QTKD'], ['ten_khoa' => 'Quản trị kinh doanh', 'is_active' => true]);
@@ -161,16 +170,33 @@ class DatabaseSeeder extends Seeder
         $activity->khoas()->sync([$cntt->id, $qtkd->id]);
 
         $activeHocKy = HocKy::where('is_active', true)->first();
+        $dotDanhGia = DotDanhGia::updateOrCreate([
+            'hoc_ky_id' => $activeHocKy->id,
+            'ten_dot' => 'Đợt đánh giá học kỳ 3 năm học 2025-2026',
+        ], [
+            'nam_hoc_id' => $namHoc->id,
+            'ngay_bat_dau_sinh_vien' => now()->subDays(2),
+            'ngay_ket_thuc_sinh_vien' => now()->addWeeks(2),
+            'ngay_bat_dau_gvcn' => now(),
+            'ngay_ket_thuc_gvcn' => now()->addWeeks(3),
+            'ngay_cong_bo' => now()->addMonth(),
+            'trang_thai' => 'open',
+            'mo_ta' => 'Đợt mẫu để sinh viên tự đánh giá và GVCN duyệt theo thời hạn.',
+            'created_by' => $admin->id,
+            'updated_by' => $hoiDong->id,
+        ]);
         $sampleStudent = SinhVien::where('ma_sinh_vien', 'SV002')->first();
         $phieu = PhieuDanhGia::firstOrCreate([
             'sinh_vien_id' => $sampleStudent->id,
             'hoc_ky_id' => $activeHocKy->id,
         ], [
+            'dot_danh_gia_id' => $dotDanhGia->id,
             'trang_thai' => 'submitted',
             'submitted_at' => now(),
             'diem_tu_cham' => 75,
             'xep_loai' => 'Khá',
         ]);
+        $phieu->update(['dot_danh_gia_id' => $dotDanhGia->id]);
         foreach (TieuChi::all() as $tieuChi) {
             ChiTietDanhGia::firstOrCreate([
                 'phieu_danh_gia_id' => $phieu->id,

@@ -15,6 +15,12 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('admin.dot-danh-gia.*') ? 'active' : '' }}" href="{{ route('admin.dot-danh-gia.index') }}">
+            <i class="nav-icon fas fa-hourglass-half"></i>
+            <p>Đợt đánh giá</p>
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link {{ request()->routeIs('hoi-dong.export.excel') ? 'active' : '' }}" href="{{ route('hoi-dong.export.excel') }}">
             <i class="nav-icon fas fa-file-excel"></i>
             <p>Xuất Excel</p>

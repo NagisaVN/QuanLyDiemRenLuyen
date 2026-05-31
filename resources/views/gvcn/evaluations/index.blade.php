@@ -11,6 +11,7 @@
                     <th>Sinh viên</th>
                     <th>Lớp</th>
                     <th>Học kỳ</th>
+                    <th>Hạn duyệt</th>
                     <th>Điểm tự chấm</th>
                     <th>Trạng thái</th>
                     <th class="text-end">Thao tác</th>
@@ -21,13 +22,19 @@
                     <tr>
                         <td>{{ $form->sinhVien->ho_ten }}<div class="small text-secondary">{{ $form->sinhVien->ma_sinh_vien }}</div></td>
                         <td>{{ $form->sinhVien->lop->ten_lop }}</td>
-                        <td>{{ $form->hocKy->ten_hoc_ky }}</td>
+                        <td>
+                            {{ $form->hocKy->ten_hoc_ky }}
+                            @if ($form->dotDanhGia)
+                                <div class="small text-secondary">{{ $form->dotDanhGia->ten_dot }}</div>
+                            @endif
+                        </td>
+                        <td>{{ $form->dotDanhGia?->ngay_ket_thuc_gvcn?->format('d/m/Y H:i') ?? 'Chưa đặt' }}</td>
                         <td>{{ $form->diem_tu_cham }}</td>
                         <td><span class="badge text-bg-info">{{ config('ui.statuses.' . $form->trang_thai, $form->trang_thai) }}</span></td>
-                        <td class="text-end"><a class="btn btn-sm btn-primary" href="{{ route('gvcn.evaluations.show', $form) }}">Duyệt</a></td>
+                        <td class="text-end"><a class="btn btn-sm btn-primary" href="{{ route('gvcn.evaluations.show', $form) }}">Xem</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-secondary py-4">Chưa có phiếu.</td></tr>
+                    <tr><td colspan="7" class="text-center text-secondary py-4">Chưa có phiếu.</td></tr>
                 @endforelse
             </tbody>
         </table>
