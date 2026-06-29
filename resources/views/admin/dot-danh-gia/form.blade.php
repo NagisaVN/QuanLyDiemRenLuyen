@@ -54,8 +54,8 @@
             <select class="form-select @error('hoc_ky_id') is-invalid @enderror" name="hoc_ky_id" required>
                 <option value="">Chọn học kỳ</option>
                 @foreach ($hocKys as $hocKy)
-                    <option value="{{ $hocKy->id }}" @selected((int) old('hoc_ky_id', $dot->hoc_ky_id) === $hocKy->id)>
-                        {{ $hocKy->namHoc?->ten_nam_hoc }} - {{ $hocKy->ten_hoc_ky }}
+                    <option value="{{ $hocKy->id }}" data-nam-hoc-id="{{ $hocKy->nam_hoc_id }}" @selected((int) old('hoc_ky_id', $dot->hoc_ky_id) === $hocKy->id)>
+                        {{ $hocKy->ten_hoc_ky }}
                     </option>
                 @endforeach
             </select>
@@ -99,4 +99,46 @@
         <button class="btn btn-primary" type="submit">Lưu</button>
     </div>
 </form>
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const namHocSelect = document.querySelector('select[name="nam_hoc_id"]');
+            const hocKySelect = document.querySelector('select[name="hoc_ky_id"]');
+
+            if (!namHocSelect || !hocKySelect) {
+                return;
+            }
+
+            const filterHocKyOptions = () => {
+                const selectedNamHocId = namHocSelect.value;
+                let currentSelectionVisible = false;
+
+                Array.from(hocKySelect.options).forEach((option) => {
+                    if (!option.value) {
+                        option.hidden = false;
+                        option.disabled = false;
+                        return;
+                    }
+
+                    const visible = selectedNamHocId !== '' && option.dataset.namHocId === selectedNamHocId;
+
+                    option.hidden = !visible;
+                    option.disabled = !visible;
+
+                    if (option.selected && visible) {
+                        currentSelectionVisible = true;
+                    }
+                });
+
+                if (!currentSelectionVisible) {
+                    hocKySelect.value = '';
+                }
+            };
+
+            namHocSelect.addEventListener('change', filterHocKyOptions);
+            filterHocKyOptions();
+        });
+    </script>
+@endpush
 @endsection

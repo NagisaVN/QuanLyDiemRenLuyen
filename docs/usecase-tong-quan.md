@@ -2,6 +2,12 @@
 
 Tài liệu này mô tả các tác nhân và use case chính của hệ thống quản lý điểm rèn luyện. Nội dung được tổng hợp từ `routes/web.php`, `routes/auth.php`, các controller trong `app/Http/Controllers` và service nghiệp vụ trong `app/Services`.
 
+## Diagram Use Case
+
+![Use case diagram tổng quan](usecase-diagram.svg)
+
+File nguồn PlantUML: [`usecase-diagram.puml`](usecase-diagram.puml).
+
 ## Tác Nhân
 
 | Tác nhân | Role/code chính | Mục tiêu sử dụng |

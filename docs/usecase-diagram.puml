@@ -1,0 +1,98 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #94A3B8
+}
+
+actor "Khách" as Guest
+actor "Người dùng\nđã đăng nhập" as User
+actor "Admin" as Admin
+actor "Sinh viên" as Student
+actor "GVCN/Cố vấn" as Gvcn
+actor "Cán bộ\nĐoàn - Hội" as Union
+actor "Hội đồng khoa/\nCông tác sinh viên" as Council
+
+rectangle "Hệ thống quản lý điểm rèn luyện" {
+  usecase "Đăng nhập" as UC_Login
+  usecase "Quên mật khẩu" as UC_Forgot
+  usecase "Đặt lại mật khẩu" as UC_Reset
+  usecase "Cập nhật hồ sơ" as UC_Profile
+  usecase "Đổi mật khẩu" as UC_ChangePassword
+  usecase "Vào dashboard\ntheo vai trò" as UC_Dashboard
+
+  usecase "Quản trị dữ liệu nền" as UC_AdminCrud
+  usecase "Quản lý người dùng\nvà phân quyền" as UC_UserRole
+  usecase "Quản lý đợt đánh giá" as UC_Period
+
+  usecase "Tự đánh giá\nđiểm rèn luyện" as UC_SelfEval
+  usecase "Tải minh chứng" as UC_EvidenceUpload
+  usecase "Nộp phiếu đánh giá" as UC_Submit
+  usecase "Xem lịch sử điểm" as UC_History
+  usecase "Đăng ký hoạt động" as UC_RegisterActivity
+  usecase "Điểm danh QR" as UC_QrCheckin
+
+  usecase "Duyệt phiếu cấp GVCN" as UC_GvcnReview
+  usecase "Duyệt minh chứng" as UC_EvidenceReview
+
+  usecase "Quản lý hoạt động" as UC_ActivityManage
+  usecase "Duyệt đăng ký\nhoạt động" as UC_ApproveRegistration
+  usecase "Điểm danh thủ công" as UC_ManualAttendance
+  usecase "Cộng/trừ điểm\nthủ công" as UC_ManualScore
+  usecase "Phát QR hoạt động" as UC_QrIssue
+
+  usecase "Xác nhận điểm\ncuối cùng" as UC_FinalApprove
+  usecase "Khóa phiếu" as UC_Lock
+  usecase "Xuất báo cáo" as UC_Export
+}
+
+Guest --> UC_Login
+Guest --> UC_Forgot
+UC_Forgot .> UC_Reset : <<extend>>
+
+User --> UC_Profile
+User --> UC_ChangePassword
+User --> UC_Dashboard
+
+Admin --> UC_AdminCrud
+Admin --> UC_UserRole
+Admin --> UC_Period
+UC_AdminCrud .> UC_UserRole : <<include>>
+
+Student --> UC_SelfEval
+Student --> UC_Submit
+Student --> UC_History
+Student --> UC_RegisterActivity
+Student --> UC_QrCheckin
+UC_SelfEval .> UC_EvidenceUpload : <<extend>>
+UC_Submit .> UC_SelfEval : <<include>>
+
+Gvcn --> UC_GvcnReview
+Gvcn --> UC_EvidenceReview
+UC_GvcnReview .> UC_EvidenceReview : <<extend>>
+
+Union --> UC_ActivityManage
+Union --> UC_ApproveRegistration
+Union --> UC_ManualAttendance
+Union --> UC_ManualScore
+Union --> UC_QrIssue
+UC_ActivityManage .> UC_QrIssue : <<include>>
+UC_ActivityManage .> UC_ApproveRegistration : <<include>>
+UC_ManualAttendance .> UC_ManualScore : <<extend>>
+
+Council --> UC_FinalApprove
+Council --> UC_Lock
+Council --> UC_Export
+Council --> UC_Period
+UC_FinalApprove .> UC_Lock : <<extend>>
+UC_Export .> UC_FinalApprove : <<extend>>
+
+@enduml
