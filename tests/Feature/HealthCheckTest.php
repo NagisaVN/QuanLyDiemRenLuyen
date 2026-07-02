@@ -12,4 +12,16 @@ class HealthCheckTest extends TestCase
 
         $response->assertOk();
     }
+
+    public function test_json_health_endpoint_is_successful(): void
+    {
+        $response = $this->getJson('/health');
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'status' => 'ok',
+                'app' => config('app.name'),
+            ]);
+    }
 }

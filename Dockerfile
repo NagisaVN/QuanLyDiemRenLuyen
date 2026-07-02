@@ -14,8 +14,11 @@ RUN npm run build
 FROM php:8.3-apache-bookworm
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+ENV PORT=8080
 ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV COMPOSER_NO_INTERACTION=1
+
+EXPOSE 8080
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

@@ -12,6 +12,7 @@ use App\Http\Controllers\Student\ActivityController as StudentActivityController
 use App\Http\Controllers\Student\EvaluationController as StudentEvaluationController;
 use Illuminate\Support\Facades\Route;
 
+
 Route::get('/', [DashboardController::class, 'home']);
 
 Route::get('/dashboard', [DashboardController::class, 'redirect'])->middleware(['auth'])->name('dashboard');
