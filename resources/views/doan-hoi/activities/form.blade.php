@@ -29,7 +29,11 @@
             </select>
         </div>
         <div class="col-12"><label class="form-label">Mô tả</label><textarea class="form-control" name="mo_ta" rows="3">{{ old('mo_ta', $hoatDong->mo_ta) }}</textarea></div>
-        <div class="col-md-6"><label class="form-label">Địa điểm</label><input class="form-control" name="dia_diem" value="{{ old('dia_diem', $hoatDong->dia_diem) }}"></div>
+        <div class="col-md-6"><label class="form-label">Địa điểm</label><input class="form-control" name="dia_diem" value="{{ old('dia_diem', $hoatDong->dia_diem ?: '12 Trịnh Đình Thảo, Tân Phú') }}"></div>
+        <div class="col-md-2"><label class="form-label">Latitude</label><input class="form-control" type="number" step="0.0000001" name="location_lat" value="{{ old('location_lat', $hoatDong->location_lat) }}"></div>
+        <div class="col-md-2"><label class="form-label">Longitude</label><input class="form-control" type="number" step="0.0000001" name="location_lng" value="{{ old('location_lng', $hoatDong->location_lng) }}"></div>
+        <div class="col-md-2"><label class="form-label">Bán kính GPS (m)</label><input class="form-control" type="number" min="10" max="1000" name="location_radius_meters" value="{{ old('location_radius_meters', $hoatDong->location_radius_meters ?: 100) }}"></div>
+        <div class="col-12 small text-secondary">TODO: nhập latitude/longitude chính xác của địa điểm từ Google Maps. Backend chỉ kiểm tra bằng tọa độ và bán kính, không kiểm tra bằng text địa chỉ.</div>
         <div class="col-md-3"><label class="form-label">Bắt đầu</label><input class="form-control" type="datetime-local" name="thoi_gian_bat_dau" value="{{ old('thoi_gian_bat_dau', optional($hoatDong->thoi_gian_bat_dau)->format('Y-m-d\TH:i')) }}"></div>
         <div class="col-md-3"><label class="form-label">Kết thúc</label><input class="form-control" type="datetime-local" name="thoi_gian_ket_thuc" value="{{ old('thoi_gian_ket_thuc', optional($hoatDong->thoi_gian_ket_thuc)->format('Y-m-d\TH:i')) }}"></div>
         <div class="col-md-3"><label class="form-label">Số lượng tối đa</label><input class="form-control" type="number" name="so_luong_toi_da" value="{{ old('so_luong_toi_da', $hoatDong->so_luong_toi_da) }}"></div>

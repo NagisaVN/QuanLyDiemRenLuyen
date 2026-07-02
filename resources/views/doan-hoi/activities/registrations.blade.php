@@ -3,6 +3,11 @@
 @section('page-title', 'Duyệt đăng ký')
 
 @section('content')
+<div class="d-flex justify-content-end mb-3">
+    <a class="btn btn-outline-success" href="{{ route('doan-hoi.activities.qr', $hoatDong) }}">
+        <i class="bi bi-qr-code me-1"></i> QR điểm danh và duyệt cộng điểm
+    </a>
+</div>
 <div class="row g-4">
     <div class="col-xl-8">
         <div class="table-card">

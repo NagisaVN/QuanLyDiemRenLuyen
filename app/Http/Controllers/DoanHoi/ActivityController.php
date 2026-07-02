@@ -81,10 +81,16 @@ class ActivityController extends Controller
 
     public function qr(HoatDong $hoatDong, HoatDongService $service)
     {
-        $hoatDong = $service->ensureQrToken($hoatDong);
-        $checkInUrl = route('sinh-vien.activities.check-in', ['hoatDong' => $hoatDong, 'token' => $hoatDong->qr_token]);
+        $hoatDong->load([
+            'attendanceSessions' => fn ($query) => $query->latest(),
+            'diemDanhHoatDongs.sinhVien.lop',
+        ]);
 
-        return view('doan-hoi.activities.qr', compact('hoatDong', 'checkInUrl'));
+        return view('doan-hoi.activities.qr', [
+            'hoatDong' => $hoatDong,
+            'sessions' => $hoatDong->attendanceSessions,
+            'records' => $hoatDong->diemDanhHoatDongs,
+        ]);
     }
 
     public function manualAdjust(Request $request, HoatDong $hoatDong, HoatDongService $service)
@@ -110,6 +116,9 @@ class ActivityController extends Controller
             'loai_hoat_dong' => ['required', 'string', 'max:100'],
             'mo_ta' => ['nullable', 'string'],
             'dia_diem' => ['nullable', 'string', 'max:255'],
+            'location_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'location_lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'location_radius_meters' => ['nullable', 'integer', 'min:10', 'max:1000'],
             'thoi_gian_bat_dau' => ['nullable', 'date'],
             'thoi_gian_ket_thuc' => ['nullable', 'date'],
             'so_luong_toi_da' => ['nullable', 'integer', 'min:1'],
@@ -119,6 +128,8 @@ class ActivityController extends Controller
 
         $data['auto_cong_diem'] = $request->boolean('auto_cong_diem');
         $data['is_bat_buoc'] = $request->boolean('is_bat_buoc');
+        $data['dia_diem'] = $data['dia_diem'] ?: '12 Trịnh Đình Thảo, Tân Phú';
+        $data['location_radius_meters'] = $data['location_radius_meters'] ?: 100;
 
         return $data;
     }

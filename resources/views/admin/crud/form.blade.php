@@ -56,7 +56,7 @@
                     <div class="form-text">Mật khẩu sẽ được mã hóa khi lưu. Bấm biểu tượng mắt để kiểm tra mật khẩu vừa nhập.</div>
                 @else
                     <label class="form-label" for="{{ $name }}">{{ $field['label'] }}</label>
-                    <input class="form-control" id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $raw }}" @if($type === 'password' && $item->exists) placeholder="Để trống nếu không đổi" @endif>
+                    <input class="form-control" id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $raw }}" @isset($field['step']) step="{{ $field['step'] }}" @endisset @if($type === 'password' && $item->exists) placeholder="Để trống nếu không đổi" @endif>
                 @endif
             </div>
         @endforeach

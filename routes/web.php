@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CrudController;
 use App\Http\Controllers\Admin\DotDanhGiaController;
+use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DoanHoi\ActivityController as DoanHoiActivityController;
 use App\Http\Controllers\Gvcn\EvaluationController as GvcnEvaluationController;
@@ -11,13 +12,7 @@ use App\Http\Controllers\Student\ActivityController as StudentActivityController
 use App\Http\Controllers\Student\EvaluationController as StudentEvaluationController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('dashboard');
-    }
-
-    return view('welcome');
-});
+Route::get('/', [DashboardController::class, 'home']);
 
 Route::get('/dashboard', [DashboardController::class, 'redirect'])->middleware(['auth'])->name('dashboard');
 
@@ -79,6 +74,16 @@ Route::middleware(['auth', 'role:sinh_vien'])->prefix('sinh-vien')->name('sinh-v
     Route::get('/hoat-dong', [StudentActivityController::class, 'index'])->name('activities.index');
     Route::post('/hoat-dong/{hoatDong}/dang-ky', [StudentActivityController::class, 'register'])->name('activities.register');
     Route::get('/hoat-dong/{hoatDong}/check-in', [StudentActivityController::class, 'checkIn'])->name('activities.check-in');
+    Route::get('/diem-danh/scan', [StudentActivityController::class, 'scan'])->name('attendance.scan');
+});
+
+Route::middleware(['auth', 'role:admin|can_bo_doan_hoi'])->prefix('api/attendance')->name('api.attendance.')->group(function () {
+    Route::post('/sessions', [AttendanceController::class, 'storeSession'])->name('sessions.store');
+    Route::post('/approve/{hoatDong}', [AttendanceController::class, 'approve'])->name('approve');
+});
+
+Route::middleware(['auth', 'role:sinh_vien'])->prefix('api/attendance')->name('api.attendance.')->group(function () {
+    Route::post('/scan', [AttendanceController::class, 'scan'])->name('scan');
 });
 
 Route::get('/minh-chung/{minhChung}/download', [StudentEvaluationController::class, 'download'])

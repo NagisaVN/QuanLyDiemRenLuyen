@@ -36,4 +36,14 @@ class ActivityController extends Controller
 
         return redirect()->route('sinh-vien.activities.index')->with('status', 'Điểm danh QR thành công.');
     }
+
+    public function scan(Request $request)
+    {
+        $data = $request->validate([
+            'sessionId' => ['required', 'integer'],
+            'token' => ['required', 'string'],
+        ]);
+
+        return view('student.activities.scan', $data);
+    }
 }

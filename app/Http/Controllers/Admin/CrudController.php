@@ -156,6 +156,11 @@ class CrudController extends Controller
             }
         }
 
+        if (($config['model'] ?? null) === HoatDong::class) {
+            $data['dia_diem'] = $data['dia_diem'] ?: '12 Trịnh Đình Thảo, Tân Phú';
+            $data['location_radius_meters'] = $data['location_radius_meters'] ?: 100;
+        }
+
         return $data;
     }
 
@@ -304,6 +309,9 @@ class CrudController extends Controller
                 'loai_hoat_dong' => ['label' => 'Loại hoạt động', 'rules' => ['required', 'string', 'max:100']],
                 'mo_ta' => ['label' => 'Mô tả', 'type' => 'textarea', 'rules' => ['nullable', 'string']],
                 'dia_diem' => ['label' => 'Địa điểm', 'rules' => ['nullable', 'string', 'max:255']],
+                'location_lat' => ['label' => 'Latitude GPS', 'type' => 'number', 'step' => '0.0000001', 'rules' => ['nullable', 'numeric', 'between:-90,90']],
+                'location_lng' => ['label' => 'Longitude GPS', 'type' => 'number', 'step' => '0.0000001', 'rules' => ['nullable', 'numeric', 'between:-180,180']],
+                'location_radius_meters' => ['label' => 'Bán kính GPS (m)', 'type' => 'number', 'rules' => ['nullable', 'integer', 'min:10', 'max:1000']],
                 'thoi_gian_bat_dau' => ['label' => 'Bắt đầu', 'type' => 'datetime-local', 'rules' => ['nullable', 'date']],
                 'thoi_gian_ket_thuc' => ['label' => 'Kết thúc', 'type' => 'datetime-local', 'rules' => ['nullable', 'date']],
                 'so_luong_toi_da' => ['label' => 'Số lượng tối đa', 'type' => 'number', 'rules' => ['nullable', 'integer', 'min:1']],

@@ -13,6 +13,15 @@ use Illuminate\Validation\ValidationException;
 
 class DashboardController extends Controller
 {
+    public function home(Request $request)
+    {
+        if ($request->user()) {
+            return redirect()->route('dashboard');
+        }
+
+        return view('welcome');
+    }
+
     public function redirect(Request $request)
     {
         $user = $request->user();

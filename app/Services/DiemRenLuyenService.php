@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ChiTietDanhGia;
+use App\Models\ConductPointLog;
 use App\Models\DiemRenLuyen;
 use App\Models\DotDanhGia;
 use App\Models\HocKy;
@@ -281,13 +282,10 @@ class DiemRenLuyenService
     {
         $auto = $sinhVien->diemRenLuyens()->count();
 
-        $checkedInPoints = $sinhVien->loadMissing('lop')
-            ->newQuery()
-            ->whereKey($sinhVien->id)
-            ->join('diem_danh_hoat_dongs', 'sinh_viens.id', '=', 'diem_danh_hoat_dongs.sinh_vien_id')
-            ->join('hoat_dongs', 'hoat_dongs.id', '=', 'diem_danh_hoat_dongs.hoat_dong_id')
-            ->whereBetween('diem_danh_hoat_dongs.checked_in_at', [$hocKy->ngay_bat_dau ?? now()->subYear(), $hocKy->ngay_ket_thuc ?? now()->addYear()])
-            ->sum('hoat_dongs.diem_cong');
+        $checkedInPoints = ConductPointLog::query()
+            ->where('sinh_vien_id', $sinhVien->id)
+            ->whereBetween('created_at', [$hocKy->ngay_bat_dau ?? now()->subYear(), $hocKy->ngay_ket_thuc ?? now()->addYear()])
+            ->sum('point');
 
         $manual = LichSuChinhSuaDiem::query()
             ->where('sinh_vien_id', $sinhVien->id)

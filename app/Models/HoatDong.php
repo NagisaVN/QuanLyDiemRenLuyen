@@ -18,6 +18,8 @@ class HoatDong extends Model
         return [
             'thoi_gian_bat_dau' => 'datetime',
             'thoi_gian_ket_thuc' => 'datetime',
+            'location_lat' => 'float',
+            'location_lng' => 'float',
             'auto_cong_diem' => 'boolean',
             'is_bat_buoc' => 'boolean',
         ];
@@ -46,5 +48,15 @@ class HoatDong extends Model
     public function diemDanhHoatDongs()
     {
         return $this->hasMany(DiemDanhHoatDong::class);
+    }
+
+    public function attendanceSessions()
+    {
+        return $this->hasMany(AttendanceSession::class);
+    }
+
+    public function conductPointLogs()
+    {
+        return $this->hasMany(ConductPointLog::class);
     }
 }

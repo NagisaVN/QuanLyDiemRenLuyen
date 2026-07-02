@@ -14,7 +14,12 @@
             <tbody>
                 @forelse ($activities as $activity)
                     <tr>
-                        <td>{{ $activity->ten_hoat_dong }}<div class="small text-secondary">{{ $activity->ma_hoat_dong }}</div></td>
+                        <td>
+                            {{ $activity->ten_hoat_dong }}
+                            <div class="small text-secondary">{{ $activity->ma_hoat_dong }}</div>
+                            <div class="small text-secondary"><i class="bi bi-geo-alt me-1"></i>{{ $activity->dia_diem ?? '12 Trịnh Đình Thảo, Tân Phú' }}</div>
+                            <div class="small text-secondary">GPS: {{ $activity->location_lat ?? 'TODO' }}, {{ $activity->location_lng ?? 'TODO' }} · {{ $activity->location_radius_meters ?? 100 }}m</div>
+                        </td>
                         <td>{{ $activity->loai_hoat_dong }}</td>
                         <td>{{ $activity->diem_cong }}</td>
                         <td>{{ $activity->dang_ky_hoat_dongs_count }}</td>
