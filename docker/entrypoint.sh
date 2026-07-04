@@ -29,6 +29,9 @@ chown -R www-data:www-data storage bootstrap/cache
 
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     php artisan migrate --force
+    if [ "${RUN_SEEDERS:-false}" = "true" ]; then
+        php artisan db:seed --force
+    fi
 fi
 
 a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
