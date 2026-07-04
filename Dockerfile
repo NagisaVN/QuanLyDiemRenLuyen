@@ -62,6 +62,7 @@ WORKDIR /var/www/html
 COPY . .
 COPY --from=assets /app/public/build ./public/build
 COPY docker/entrypoint.sh /usr/local/bin/railway-entrypoint
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 RUN composer install \
         --no-dev \

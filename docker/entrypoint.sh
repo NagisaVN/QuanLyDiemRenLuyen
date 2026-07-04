@@ -23,6 +23,7 @@ mkdir -p \
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+php artisan event:cache
 php artisan storage:link --force >/dev/null 2>&1 || true
 
 chown -R www-data:www-data storage bootstrap/cache
