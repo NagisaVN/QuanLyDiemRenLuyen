@@ -20,7 +20,7 @@ class CheckGvcnReviewPeriod
         $dot = $phieu instanceof PhieuDanhGia
             ? $phieu->loadMissing('dotDanhGia')->dotDanhGia
             : $minhChung?->loadMissing('phieuDanhGia.dotDanhGia')->phieuDanhGia?->dotDanhGia;
-        $dot ??= $service->current();
+        $dot ??= $service->getCurrentTeacherPeriod();
 
         if (! $service->openForGvcn($dot)) {
             return back()->withErrors(['dot_danh_gia' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);

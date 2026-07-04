@@ -30,7 +30,7 @@
         <div class="col-md-4">
             <label class="form-label">Trạng thái <span class="text-danger">*</span></label>
             <select class="form-select @error('trang_thai') is-invalid @enderror" name="trang_thai" required>
-                @foreach (['draft', 'open', 'closed', 'published'] as $status)
+                @foreach (['draft', 'open', 'closed'] as $status)
                     <option value="{{ $status }}" @selected(old('trang_thai', $dot->trang_thai ?? 'draft') === $status)>
                         {{ config('ui.statuses.' . $status, $status) }}
                     </option>

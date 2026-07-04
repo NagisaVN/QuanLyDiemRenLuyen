@@ -64,27 +64,54 @@
                         </td>
                         <td class="text-end">
                             <div class="d-inline-flex gap-1 flex-wrap justify-content-end">
-                                @can('manage_dot_danh_gia')
-                                    <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.edit', $dot) }}">Sửa</a>
-                                @endcan
-                                @can('open_dot_danh_gia')
-                                    <form method="POST" action="{{ route('admin.dot-danh-gia.open', $dot) }}">
-                                        @csrf
-                                        <button class="btn btn-sm btn-success" type="submit">Mở</button>
-                                    </form>
-                                @endcan
-                                @can('close_dot_danh_gia')
-                                    <form method="POST" action="{{ route('admin.dot-danh-gia.close', $dot) }}">
-                                        @csrf
-                                        <button class="btn btn-sm btn-outline-dark" type="submit">Đóng</button>
-                                    </form>
-                                @endcan
-                                @can('publish_dot_danh_gia')
-                                    <form method="POST" action="{{ route('admin.dot-danh-gia.publish', $dot) }}">
-                                        @csrf
-                                        <button class="btn btn-sm btn-primary" type="submit">Công bố</button>
-                                    </form>
-                                @endcan
+                                @if ($dot->trang_thai === 'published')
+                                    @can('manage_dot_danh_gia')
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.results', $dot) }}">Xem kết quả</a>
+                                    @endcan
+                                    @can('export reports')
+                                        <a class="btn btn-sm btn-outline-success" href="{{ route('admin.dot-danh-gia.export', $dot) }}">Xuất Excel</a>
+                                    @endcan
+                                @elseif ($dot->trang_thai === 'open')
+                                    @can('manage_dot_danh_gia')
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.edit', $dot) }}">Sửa</a>
+                                    @endcan
+                                    @can('close_dot_danh_gia')
+                                        <form method="POST" action="{{ route('admin.dot-danh-gia.close', $dot) }}">
+                                            @csrf
+                                            <button class="btn btn-sm btn-outline-dark" type="submit">Đóng</button>
+                                        </form>
+                                    @endcan
+                                @elseif ($dot->trang_thai === 'closed')
+                                    @can('open_dot_danh_gia')
+                                        <form method="POST" action="{{ route('admin.dot-danh-gia.open', $dot) }}">
+                                            @csrf
+                                            <button class="btn btn-sm btn-success" type="submit">Mở lại</button>
+                                        </form>
+                                    @endcan
+                                    @can('publish_dot_danh_gia')
+                                        <form method="POST" action="{{ route('admin.dot-danh-gia.publish', $dot) }}">
+                                            @csrf
+                                            <button class="btn btn-sm btn-primary" type="submit">Công bố</button>
+                                        </form>
+                                    @endcan
+                                @elseif ($dot->trang_thai === 'draft')
+                                    @can('manage_dot_danh_gia')
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.edit', $dot) }}">Sửa</a>
+                                    @endcan
+                                    @can('open_dot_danh_gia')
+                                        <form method="POST" action="{{ route('admin.dot-danh-gia.open', $dot) }}">
+                                            @csrf
+                                            <button class="btn btn-sm btn-success" type="submit">Mở</button>
+                                        </form>
+                                    @endcan
+                                    @can('manage_dot_danh_gia')
+                                        <form method="POST" action="{{ route('admin.dot-danh-gia.destroy', $dot) }}" onsubmit="return confirm('Xóa đợt đánh giá này?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button>
+                                        </form>
+                                    @endcan
+                                @endif
                             </div>
                         </td>
                     </tr>

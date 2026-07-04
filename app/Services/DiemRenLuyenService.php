@@ -38,35 +38,46 @@ class DiemRenLuyenService
 
     public function ensurePhieu(SinhVien $sinhVien, ?HocKy $hocKy = null): PhieuDanhGia
     {
-        $hocKy ??= $this->activeHocKy();
-
-        if (! $hocKy) {
-            throw ValidationException::withMessages(['hoc_ky' => 'Chưa có học kỳ đang mở.']);
-        }
-
         $dotService = app(DotDanhGiaService::class);
-        $openDot = $dotService->openForStudent($hocKy);
-        $currentDot = $openDot ?? $dotService->current($hocKy);
-        $existingPhieu = PhieuDanhGia::query()
-            ->where('sinh_vien_id', $sinhVien->id)
-            ->where('hoc_ky_id', $hocKy->id)
-            ->first();
+        $currentDot = $hocKy
+            ? $dotService->getCurrentStudentPeriod($hocKy)
+            : $dotService->getCurrentStudentPeriod();
 
         if (! $currentDot) {
-            throw ValidationException::withMessages(['dot_danh_gia' => 'Chưa có đợt đánh giá cho học kỳ hiện tại.']);
+            throw ValidationException::withMessages(['dot_danh_gia' => 'Hiện chưa có đợt đánh giá đang mở.']);
         }
 
-        if (! $openDot && ! $existingPhieu) {
-            throw ValidationException::withMessages(['dot_danh_gia' => 'Đã hết thời hạn nộp phiếu đánh giá.']);
+        $hocKy = $currentDot->hocKy;
+
+        if (! $hocKy) {
+            throw ValidationException::withMessages(['hoc_ky' => 'Đợt đánh giá chưa gắn học kỳ hợp lệ.']);
         }
 
-        $phieu = PhieuDanhGia::firstOrCreate(
-            ['sinh_vien_id' => $sinhVien->id, 'hoc_ky_id' => $hocKy->id],
-            [
+        $phieu = PhieuDanhGia::query()
+            ->where('sinh_vien_id', $sinhVien->id)
+            ->where('dot_danh_gia_id', $currentDot->id)
+            ->first();
+
+        if (! $phieu) {
+            $phieu = PhieuDanhGia::query()
+                ->where('sinh_vien_id', $sinhVien->id)
+                ->where('hoc_ky_id', $hocKy->id)
+                ->whereNull('dot_danh_gia_id')
+                ->first();
+
+            if ($phieu) {
+                $phieu->update(['dot_danh_gia_id' => $currentDot->id]);
+            }
+        }
+
+        if (! $phieu) {
+            $phieu = PhieuDanhGia::create([
+                'sinh_vien_id' => $sinhVien->id,
+                'hoc_ky_id' => $hocKy->id,
                 'dot_danh_gia_id' => $currentDot->id,
                 'trang_thai' => PhieuDanhGia::STATUS_DRAFT,
-            ]
-        );
+            ]);
+        }
 
         if (! $phieu->dot_danh_gia_id) {
             $phieu->update(['dot_danh_gia_id' => $currentDot->id]);
@@ -187,8 +198,6 @@ class DiemRenLuyenService
             throw ValidationException::withMessages(['phieu' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
         }
 
-        // Nếu GVCN bấm xác nhận khi chưa lưu riêng điểm chi tiết,
-        // dùng điểm tự chấm làm điểm GVCN để cột GVCN không bị trống.
         $phieu->chiTietDanhGias()
             ->whereNull('diem_gvcn')
             ->each(function (ChiTietDanhGia $detail) use ($phieu, $user, $note): void {
@@ -251,9 +260,10 @@ class DiemRenLuyenService
         ]);
 
         DiemRenLuyen::updateOrCreate(
-            ['sinh_vien_id' => $phieu->sinh_vien_id, 'hoc_ky_id' => $phieu->hoc_ky_id],
+            ['phieu_danh_gia_id' => $phieu->id],
             [
-                'phieu_danh_gia_id' => $phieu->id,
+                'sinh_vien_id' => $phieu->sinh_vien_id,
+                'hoc_ky_id' => $phieu->hoc_ky_id,
                 'tong_diem' => $finalScore,
                 'diem_hoat_dong' => $activityScore,
                 'xep_loai' => $this->xepLoai($finalScore),

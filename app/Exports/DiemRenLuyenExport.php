@@ -3,20 +3,32 @@
 namespace App\Exports;
 
 use App\Models\DiemRenLuyen;
+use App\Models\DotDanhGia;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
 class DiemRenLuyenExport implements FromCollection, WithHeadings, WithMapping
 {
+    public function __construct(private readonly ?DotDanhGia $dotDanhGia = null)
+    {
+    }
+
     public function collection()
     {
-        return DiemRenLuyen::with(['sinhVien.lop.khoa', 'hocKy.namHoc'])->latest()->get();
+        return DiemRenLuyen::query()
+            ->with(['sinhVien.lop.khoa', 'hocKy.namHoc', 'phieuDanhGia.dotDanhGia'])
+            ->when($this->dotDanhGia, fn ($query) => $query->whereHas(
+                'phieuDanhGia',
+                fn ($formQuery) => $formQuery->where('dot_danh_gia_id', $this->dotDanhGia->id)
+            ))
+            ->latest()
+            ->get();
     }
 
     public function headings(): array
     {
-        return ['Mã SV', 'Họ tên', 'Lớp', 'Khoa', 'Học kỳ', 'Năm học', 'Điểm', 'Điểm hoạt động', 'Xếp loại', 'Trạng thái'];
+        return ['Mã SV', 'Họ tên', 'Lớp', 'Khoa', 'Học kỳ', 'Năm học', 'Đợt đánh giá', 'Điểm', 'Điểm hoạt động', 'Xếp loại', 'Trạng thái'];
     }
 
     public function map($row): array
@@ -28,6 +40,7 @@ class DiemRenLuyenExport implements FromCollection, WithHeadings, WithMapping
             $row->sinhVien?->lop?->khoa?->ten_khoa,
             $row->hocKy?->ten_hoc_ky,
             $row->hocKy?->namHoc?->ten_nam_hoc,
+            $row->phieuDanhGia?->dotDanhGia?->ten_dot,
             $row->tong_diem,
             $row->diem_hoat_dong,
             $row->xep_loai,

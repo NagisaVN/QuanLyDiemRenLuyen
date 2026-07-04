@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\DiemRenLuyenExport;
 use App\Http\Controllers\Controller;
 use App\Models\DotDanhGia;
 use App\Models\HocKy;
 use App\Models\NamHoc;
+use App\Models\PhieuDanhGia;
 use App\Services\DotDanhGiaService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DotDanhGiaController extends Controller
 {
@@ -42,6 +46,8 @@ class DotDanhGiaController extends Controller
 
     public function edit(DotDanhGia $dotDanhGia)
     {
+        abort_if($dotDanhGia->trang_thai === DotDanhGia::STATUS_PUBLISHED, 403);
+
         return view('admin.dot-danh-gia.form', [
             'dot' => $dotDanhGia,
             ...$this->formOptions(),
@@ -50,12 +56,29 @@ class DotDanhGiaController extends Controller
 
     public function update(Request $request, DotDanhGia $dotDanhGia)
     {
+        abort_if($dotDanhGia->trang_thai === DotDanhGia::STATUS_PUBLISHED, 403);
+
         $dotDanhGia->update([
             ...$this->validated($request),
             'updated_by' => $request->user()->id,
         ]);
 
         return redirect()->route('admin.dot-danh-gia.index')->with('status', 'Đã cập nhật đợt đánh giá.');
+    }
+
+    public function destroy(DotDanhGia $dotDanhGia)
+    {
+        if ($dotDanhGia->trang_thai !== DotDanhGia::STATUS_DRAFT) {
+            throw ValidationException::withMessages(['dot_danh_gia' => 'Chỉ có thể xóa đợt nháp.']);
+        }
+
+        if ($dotDanhGia->phieuDanhGias()->exists()) {
+            throw ValidationException::withMessages(['dot_danh_gia' => 'Không thể xóa đợt đã có phiếu đánh giá.']);
+        }
+
+        $dotDanhGia->delete();
+
+        return back()->with('status', 'Đã xóa đợt đánh giá.');
     }
 
     public function open(Request $request, DotDanhGia $dotDanhGia, DotDanhGiaService $service)
@@ -79,6 +102,26 @@ class DotDanhGiaController extends Controller
         return back()->with('status', 'Đã công bố kết quả và khóa phiếu liên quan.');
     }
 
+    public function results(DotDanhGia $dotDanhGia, DotDanhGiaService $service)
+    {
+        abort_unless($service->getPeriodForViewingResult($dotDanhGia), 404);
+
+        $forms = PhieuDanhGia::query()
+            ->with(['sinhVien.lop.khoa', 'hocKy.namHoc', 'dotDanhGia', 'diemRenLuyen'])
+            ->where('dot_danh_gia_id', $dotDanhGia->id)
+            ->latest('id')
+            ->paginate(20);
+
+        return view('admin.dot-danh-gia.results', compact('dotDanhGia', 'forms'));
+    }
+
+    public function exportExcel(DotDanhGia $dotDanhGia, DotDanhGiaService $service)
+    {
+        abort_unless($service->getPeriodForViewingResult($dotDanhGia), 404);
+
+        return Excel::download(new DiemRenLuyenExport($dotDanhGia), "ket-qua-dot-{$dotDanhGia->id}.xlsx");
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -97,7 +140,6 @@ class DotDanhGiaController extends Controller
                 DotDanhGia::STATUS_DRAFT,
                 DotDanhGia::STATUS_OPEN,
                 DotDanhGia::STATUS_CLOSED,
-                DotDanhGia::STATUS_PUBLISHED,
             ])],
             'mo_ta' => ['nullable', 'string', 'max:2000'],
         ]);

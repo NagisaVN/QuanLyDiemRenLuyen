@@ -42,6 +42,9 @@ Route::middleware(['auth', 'role:admin|hoi_dong_khoa'])
         Route::put('/dot-danh-gia/{dotDanhGia}', [DotDanhGiaController::class, 'update'])
             ->middleware('permission:manage_dot_danh_gia')
             ->name('dot-danh-gia.update');
+        Route::delete('/dot-danh-gia/{dotDanhGia}', [DotDanhGiaController::class, 'destroy'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.destroy');
         Route::post('/dot-danh-gia/{dotDanhGia}/open', [DotDanhGiaController::class, 'open'])
             ->middleware('permission:open_dot_danh_gia')
             ->name('dot-danh-gia.open');
@@ -51,6 +54,12 @@ Route::middleware(['auth', 'role:admin|hoi_dong_khoa'])
         Route::post('/dot-danh-gia/{dotDanhGia}/publish', [DotDanhGiaController::class, 'publish'])
             ->middleware('permission:publish_dot_danh_gia')
             ->name('dot-danh-gia.publish');
+        Route::get('/dot-danh-gia/{dotDanhGia}/ket-qua', [DotDanhGiaController::class, 'results'])
+            ->middleware('permission:manage_dot_danh_gia')
+            ->name('dot-danh-gia.results');
+        Route::get('/dot-danh-gia/{dotDanhGia}/export', [DotDanhGiaController::class, 'exportExcel'])
+            ->middleware('permission:export reports')
+            ->name('dot-danh-gia.export');
     });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
