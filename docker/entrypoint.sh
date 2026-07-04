@@ -9,7 +9,7 @@ if [ -z "${APP_KEY:-}" ]; then
     echo "APP_KEY is not set; generated a temporary key for this container. Set a persistent APP_KEY in Railway variables."
 fi
 
-printf 'Listen 0.0.0.0:%s\n' "${PORT}" > /etc/apache2/ports.conf
+printf 'Listen %s\n' "${PORT}" > /etc/apache2/ports.conf
 sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 sed -ri "s!DocumentRoot .*!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/000-default.conf
 
@@ -20,15 +20,20 @@ mkdir -p \
     storage/logs \
     bootstrap/cache
 
-chown -R www-data:www-data storage bootstrap/cache
+# Pass all environment variables to a .env file so Apache/mod_php can read them
+env > /var/www/html/.env
 
-php artisan config:clear >/dev/null 2>&1 || true
+php artisan config:cache >/dev/null 2>&1 || true
+php artisan route:cache >/dev/null 2>&1 || true
+php artisan view:cache >/dev/null 2>&1 || true
 php artisan storage:link --force >/dev/null 2>&1 || true
+
+chown -R www-data:www-data storage bootstrap/cache .env
 
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     php artisan migrate --force
 fi
 
 apache2ctl -t
-echo "Starting Apache on 0.0.0.0:${PORT}"
+echo "Starting Apache on port ${PORT}"
 exec apache2-foreground
