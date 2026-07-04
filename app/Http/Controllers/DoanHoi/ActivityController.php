@@ -13,6 +13,11 @@ use Illuminate\Http\Request;
 
 class ActivityController extends Controller
 {
+    private const DEFAULT_ACTIVITY_LOCATION = [
+        'lat' => 10.7749241,
+        'lng' => 106.6345254,
+    ];
+
     public function index()
     {
         $activities = HoatDong::withCount(['dangKyHoatDongs', 'diemDanhHoatDongs'])->latest()->paginate(15);
@@ -140,6 +145,8 @@ class ActivityController extends Controller
             'hoatDong' => $hoatDong,
             'khoas' => Khoa::orderBy('ten_khoa')->get(),
             'tieuChis' => TieuChi::orderBy('thu_tu')->get(),
+            'googleMapsBrowserKey' => config('services.google_maps.browser_key'),
+            'defaultMapCenter' => self::DEFAULT_ACTIVITY_LOCATION,
             'types' => [
                 'Hoạt động học tập',
                 'Hoạt động Đoàn - Hội',
