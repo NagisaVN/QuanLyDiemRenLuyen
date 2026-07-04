@@ -41,6 +41,8 @@ RUN apt-get update \
         pcntl \
         pdo_mysql \
         zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && a2enmod headers rewrite \
     && sed -ri -e "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" \
         /etc/apache2/apache2.conf \
