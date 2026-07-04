@@ -23,6 +23,11 @@
     $mapRadius = is_numeric($locationRadiusValue)
         ? min(1000, max(10, (int) $locationRadiusValue))
         : 100;
+    $mapConfig = [
+        'center' => ['lat' => $mapCenterLat, 'lng' => $mapCenterLng],
+        'radius' => $mapRadius,
+        'hasSelectedLocation' => $hasSelectedLocation,
+    ];
 @endphp
 
 <form method="POST" action="{{ $hoatDong->exists ? route('doan-hoi.activities.update', $hoatDong) : route('doan-hoi.activities.store') }}" class="table-card p-3">
@@ -204,11 +209,7 @@
     @push('scripts')
     <script>
         (function () {
-            const config = @json([
-                'center' => ['lat' => $mapCenterLat, 'lng' => $mapCenterLng],
-                'radius' => $mapRadius,
-                'hasSelectedLocation' => $hasSelectedLocation,
-            ]);
+            const config = @json($mapConfig);
 
             let map;
             let marker;
