@@ -20,19 +20,19 @@ mkdir -p \
     storage/logs \
     bootstrap/cache
 
-# Pass all environment variables to a .env file so Apache/mod_php can read them
-env > /var/www/html/.env
-
-php artisan config:cache >/dev/null 2>&1 || true
-php artisan route:cache >/dev/null 2>&1 || true
-php artisan view:cache >/dev/null 2>&1 || true
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 php artisan storage:link --force >/dev/null 2>&1 || true
 
-chown -R www-data:www-data storage bootstrap/cache .env
+chown -R www-data:www-data storage bootstrap/cache
 
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     php artisan migrate --force
 fi
+
+a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
+a2enmod mpm_prefork >/dev/null 2>&1 || true
 
 apache2ctl -t
 echo "Starting Apache on port ${PORT}"
