@@ -10,6 +10,7 @@ use App\Models\SinhVien;
 use App\Models\TieuChi;
 use App\Services\HoatDongService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ActivityController extends Controller
 {
@@ -114,7 +115,7 @@ class ActivityController extends Controller
 
     private function validated(Request $request): array
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'tieu_chi_id' => ['nullable', 'exists:tieu_chis,id'],
             'ma_hoat_dong' => ['required', 'string', 'max:50'],
             'ten_hoat_dong' => ['required', 'string', 'max:255'],
@@ -123,7 +124,7 @@ class ActivityController extends Controller
             'dia_diem' => ['nullable', 'string', 'max:255'],
             'location_lat' => ['nullable', 'numeric', 'between:-90,90'],
             'location_lng' => ['nullable', 'numeric', 'between:-180,180'],
-            'location_radius_meters' => ['nullable', 'integer', 'min:10', 'max:1000'],
+            'location_radius_meters' => ['required', 'integer', 'min:10', 'max:1000'],
             'thoi_gian_bat_dau' => ['nullable', 'date'],
             'thoi_gian_ket_thuc' => ['nullable', 'date'],
             'so_luong_toi_da' => ['nullable', 'integer', 'min:1'],
@@ -131,10 +132,19 @@ class ActivityController extends Controller
             'trang_thai' => ['required', 'in:draft,open,closed,cancelled'],
         ]);
 
+        $validator->after(function ($validator) use ($request) {
+            if (filled($request->input('location_lat')) && filled($request->input('location_lng'))) {
+                return;
+            }
+
+            $validator->errors()->add('location_lat', 'Vui lòng chọn vị trí trên bản đồ trước khi lưu hoạt động.');
+        });
+
+        $data = $validator->validate();
+
         $data['auto_cong_diem'] = $request->boolean('auto_cong_diem');
         $data['is_bat_buoc'] = $request->boolean('is_bat_buoc');
-        $data['dia_diem'] = $data['dia_diem'] ?: '12 Trịnh Đình Thảo, Tân Phú';
-        $data['location_radius_meters'] = $data['location_radius_meters'] ?: 100;
+        $data['dia_diem'] = ($data['dia_diem'] ?? null) ?: '12 Trịnh Đình Thảo, Tân Phú';
 
         return $data;
     }

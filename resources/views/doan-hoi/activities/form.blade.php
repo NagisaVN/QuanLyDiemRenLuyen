@@ -6,6 +6,7 @@
 @php
     $defaultAddress = '12 Trịnh Đình Thảo, Tân Phú';
     $googleMapsBrowserKey = $googleMapsBrowserKey ?? null;
+    $hasGoogleMapsBrowserKey = is_string($googleMapsBrowserKey) && str_starts_with($googleMapsBrowserKey, 'AIza');
     $defaultMapCenter = $defaultMapCenter ?? ['lat' => 10.7749241, 'lng' => 106.6345254];
     $locationLatValue = old('location_lat', $hoatDong->location_lat);
     $locationLngValue = old('location_lng', $hoatDong->location_lng);
@@ -71,50 +72,48 @@
             <textarea class="form-control" id="mo_ta" name="mo_ta" rows="3">{{ old('mo_ta', $hoatDong->mo_ta) }}</textarea>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-8">
             <label class="form-label" for="dia_diem">Địa điểm</label>
             <input class="form-control" id="dia_diem" name="dia_diem" maxlength="255" aria-describedby="dia_diem_hint" value="{{ old('dia_diem', $hoatDong->dia_diem ?: $defaultAddress) }}">
+            <input type="hidden" name="location_lat" id="latitude" value="{{ $locationLatValue }}">
+            <input type="hidden" name="location_lng" id="longitude" value="{{ $locationLngValue }}">
             <div class="form-text text-secondary" id="dia_diem_hint">Tên địa điểm giúp sinh viên nhận biết nơi diễn ra hoạt động.</div>
         </div>
 
-        <div class="col-md-2">
-            <label class="form-label" for="location_lat">Latitude</label>
-            <input class="form-control" id="location_lat" type="number" step="0.0000001" min="-90" max="90" name="location_lat" aria-describedby="location_lat_hint" value="{{ $locationLatValue }}">
-            <div class="form-text text-secondary" id="location_lat_hint">Tự điền khi chọn điểm trên bản đồ.</div>
-        </div>
-
-        <div class="col-md-2">
-            <label class="form-label" for="location_lng">Longitude</label>
-            <input class="form-control" id="location_lng" type="number" step="0.0000001" min="-180" max="180" name="location_lng" aria-describedby="location_lng_hint" value="{{ $locationLngValue }}">
-            <div class="form-text text-secondary" id="location_lng_hint">Tự điền khi chọn điểm trên bản đồ.</div>
-        </div>
-
-        <div class="col-md-2">
+        <div class="col-md-4">
             <label class="form-label" for="location_radius_meters">Bán kính GPS (m)</label>
             <input class="form-control" id="location_radius_meters" type="number" step="1" min="10" max="1000" name="location_radius_meters" aria-describedby="location_radius_hint" value="{{ $locationRadiusValue }}">
             <div class="form-text text-secondary" id="location_radius_hint">Sinh viên cần ở trong bán kính này để điểm danh.</div>
         </div>
 
         <div class="col-12">
-            @if ($googleMapsBrowserKey)
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-2">
-                    <div>
-                        <label class="form-label mb-1">Chọn điểm trên Google Maps</label>
-                        <div class="small text-secondary">Click vào bản đồ hoặc kéo ghim để cập nhật latitude/longitude. Vòng tròn thể hiện bán kính GPS.</div>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-2">
+                <div>
+                    <label class="form-label mb-1">Bản đồ chọn vị trí</label>
+                    <div class="small text-secondary">
+                        @if ($hasGoogleMapsBrowserKey)
+                            Nhập địa điểm, chọn gợi ý, click vào bản đồ hoặc kéo ghim để cập nhật tọa độ. Vòng tròn thể hiện bán kính GPS.
+                        @else
+                            Nhập địa điểm rồi bấm tìm, click vào bản đồ hoặc kéo ghim để cập nhật tọa độ. Vòng tròn thể hiện bán kính GPS.
+                        @endif
                     </div>
+                </div>
+                <div class="d-flex gap-2">
+                    @unless ($hasGoogleMapsBrowserKey)
+                        <button class="btn btn-outline-primary btn-sm" type="button" id="search-location">
+                            <i class="bi bi-search mr-1"></i>Tìm trên bản đồ
+                        </button>
+                    @endunless
                     <button class="btn btn-outline-primary btn-sm" type="button" id="use-current-location">
                         <i class="bi bi-crosshair mr-1"></i>Dùng vị trí hiện tại
                     </button>
                 </div>
-                <div id="activity-location-map" class="activity-location-map" role="application" aria-label="Bản đồ chọn tọa độ hoạt động"></div>
-                <div id="location-map-status" class="small text-secondary mt-2">
-                    {{ $hasSelectedLocation ? 'Đang hiển thị tọa độ đã lưu.' : 'Chưa chọn tọa độ. Bản đồ đang mở gần địa điểm mặc định.' }}
-                </div>
-            @else
-                <div class="alert alert-warning mb-0">
-                    Chưa cấu hình Google Maps. Thêm <code>GOOGLE_MAPS_BROWSER_KEY</code> vào môi trường để bật chọn điểm trên bản đồ; hiện tại vẫn có thể nhập latitude/longitude thủ công.
-                </div>
-            @endif
+            </div>
+
+            <div id="activity-map" role="application" aria-label="Bản đồ chọn tọa độ hoạt động"></div>
+            <div id="location-map-status" class="small text-secondary mt-2">
+                {{ $hasSelectedLocation ? 'Đang hiển thị tọa độ đã lưu.' : 'Chưa chọn tọa độ. Bản đồ đang mở gần địa điểm mặc định.' }}
+            </div>
         </div>
 
         <div class="col-md-3">
@@ -182,30 +181,30 @@
 </form>
 
 @push('styles')
+@unless ($hasGoogleMapsBrowserKey)
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+@endunless
 <style>
     .required-marker {
         color: #dc3545;
         font-weight: 700;
     }
 
-    .activity-location-map {
+    #activity-map {
+        height: 350px;
         width: 100%;
-        min-height: 360px;
         border: 1px solid #ced4da;
-        border-radius: 6px;
+        border-radius: 8px;
         overflow: hidden;
         background: #f8fafc;
     }
-
-    @media (max-width: 575.98px) {
-        .activity-location-map {
-            min-height: 300px;
-        }
+    .leaflet-container {
+        font-family: inherit;
     }
 </style>
 @endpush
 
-@if ($googleMapsBrowserKey)
+@if ($hasGoogleMapsBrowserKey)
     @push('scripts')
     <script>
         (function () {
@@ -215,11 +214,12 @@
             let marker;
             let circle;
 
-            const mapElement = document.getElementById('activity-location-map');
+            const mapElement = document.getElementById('activity-map');
             const statusElement = document.getElementById('location-map-status');
             const currentLocationButton = document.getElementById('use-current-location');
-            const latInput = document.getElementById('location_lat');
-            const lngInput = document.getElementById('location_lng');
+            const addressInput = document.getElementById('dia_diem');
+            const latInput = document.getElementById('latitude');
+            const lngInput = document.getElementById('longitude');
             const radiusInput = document.getElementById('location_radius_meters');
 
             function setStatus(message, type = 'secondary') {
@@ -286,19 +286,34 @@
                 setStatus(`Đã chọn tọa độ ${normalizedPosition.lat.toFixed(7)}, ${normalizedPosition.lng.toFixed(7)} với bán kính ${readRadius()}m.`, 'success');
             }
 
-            function syncMarkerFromInputs() {
-                const lat = Number(latInput.value);
-                const lng = Number(lngInput.value);
+            window.gm_authFailure = function () {
+                setStatus('Google Maps API key không hợp lệ hoặc chưa bật Maps JavaScript API. Không thể chọn vị trí trên bản đồ.', 'danger');
+            };
 
-                if (! Number.isFinite(lat) || ! Number.isFinite(lng)) {
+            function initAutocomplete() {
+                if (! addressInput || ! google.maps.places?.Autocomplete) {
+                    setStatus('Không tải được Google Places Autocomplete. Bạn vẫn có thể chọn trực tiếp trên bản đồ.', 'warning');
                     return;
                 }
 
-                setLocation({ lat, lng });
-            }
+                const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+                    componentRestrictions: { country: 'vn' },
+                    fields: ['formatted_address', 'geometry', 'name'],
+                });
 
-            window.gm_authFailure = function () {
-                setStatus('Google Maps API key không hợp lệ hoặc chưa bật Maps JavaScript API. Vẫn có thể nhập tọa độ thủ công.', 'danger');
+                autocomplete.bindTo('bounds', map);
+                autocomplete.addListener('place_changed', () => {
+                    const place = autocomplete.getPlace();
+
+                    if (! place.geometry?.location) {
+                        setStatus('Không tìm thấy tọa độ cho địa điểm đã chọn. Hãy chọn trực tiếp trên bản đồ.', 'danger');
+                        return;
+                    }
+
+                    addressInput.value = place.formatted_address || place.name || addressInput.value;
+                    setLocation(place.geometry.location);
+                    map.setZoom(17);
+                });
             };
 
             window.initActivityLocationMap = function () {
@@ -327,8 +342,19 @@
                     visible: config.hasSelectedLocation,
                 });
 
+                initAutocomplete();
+
                 if (config.hasSelectedLocation) {
                     setLocation(config.center, { pan: false });
+                } else {
+                    marker = new google.maps.Marker({
+                        position: config.center,
+                        map,
+                        draggable: true,
+                        title: 'Kéo ghim hoặc click bản đồ để chọn vị trí điểm danh',
+                    });
+
+                    marker.addListener('dragend', (event) => setLocation(event.latLng, { pan: false }));
                 }
 
                 map.addListener('click', (event) => setLocation(event.latLng));
@@ -344,9 +370,6 @@
                         setStatus(`Bán kính GPS sẽ là ${radius}m sau khi chọn điểm.`, 'secondary');
                     }
                 });
-
-                latInput?.addEventListener('change', syncMarkerFromInputs);
-                lngInput?.addEventListener('change', syncMarkerFromInputs);
 
                 currentLocationButton?.addEventListener('click', () => {
                     if (! navigator.geolocation) {
@@ -381,7 +404,233 @@
             };
         })();
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ rawurlencode($googleMapsBrowserKey) }}&callback=initActivityLocationMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ rawurlencode($googleMapsBrowserKey) }}&libraries=places&callback=initActivityLocationMap"></script>
+    @endpush
+@else
+    @push('scripts')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        (function () {
+            const config = @json($mapConfig);
+
+            let map;
+            let marker;
+            let circle;
+
+            const mapElement = document.getElementById('activity-map');
+            const statusElement = document.getElementById('location-map-status');
+            const currentLocationButton = document.getElementById('use-current-location');
+            const searchLocationButton = document.getElementById('search-location');
+            const addressInput = document.getElementById('dia_diem');
+            const latInput = document.getElementById('latitude');
+            const lngInput = document.getElementById('longitude');
+            const radiusInput = document.getElementById('location_radius_meters');
+
+            function setStatus(message, type = 'secondary') {
+                if (! statusElement) {
+                    return;
+                }
+
+                statusElement.className = `small text-${type} mt-2`;
+                statusElement.textContent = message;
+            }
+
+            function readRadius() {
+                const value = Number(radiusInput?.value);
+
+                if (! Number.isFinite(value)) {
+                    return 100;
+                }
+
+                return Math.min(1000, Math.max(10, Math.round(value)));
+            }
+
+            function normalizePosition(position) {
+                const lat = typeof position.lat === 'function' ? position.lat() : Number(position.lat);
+                const lng = typeof position.lng === 'function' ? position.lng() : Number(position.lng ?? position.lon);
+
+                if (! Number.isFinite(lat) || ! Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                    return null;
+                }
+
+                return { lat, lng };
+            }
+
+            function setLocation(position, options = {}) {
+                const normalizedPosition = normalizePosition(position);
+
+                if (! normalizedPosition || ! map) {
+                    return;
+                }
+
+                const latLng = [normalizedPosition.lat, normalizedPosition.lng];
+                latInput.value = normalizedPosition.lat.toFixed(7);
+                lngInput.value = normalizedPosition.lng.toFixed(7);
+
+                if (! marker) {
+                    marker = L.marker(latLng, {
+                        draggable: true,
+                        title: 'Vị trí điểm danh',
+                    }).addTo(map);
+
+                    marker.on('dragend', () => setLocation(marker.getLatLng(), { pan: false }));
+                } else {
+                    marker.setLatLng(latLng);
+                }
+
+                if (! circle) {
+                    circle = L.circle(latLng, {
+                        radius: readRadius(),
+                        color: '#2563eb',
+                        weight: 2,
+                        opacity: 0.85,
+                        fillColor: '#2563eb',
+                        fillOpacity: 0.12,
+                        interactive: false,
+                    }).addTo(map);
+                } else {
+                    circle.setLatLng(latLng);
+                    circle.setRadius(readRadius());
+                }
+
+                if (options.pan !== false) {
+                    map.panTo(latLng);
+                }
+
+                setStatus(`Đã chọn tọa độ ${normalizedPosition.lat.toFixed(7)}, ${normalizedPosition.lng.toFixed(7)} với bán kính ${readRadius()}m.`, 'success');
+            }
+
+            async function searchAddress() {
+                const query = addressInput?.value.trim();
+
+                if (! query || query.length < 3) {
+                    setStatus('Nhập địa điểm rõ hơn trước khi tìm trên bản đồ.', 'danger');
+                    return;
+                }
+
+                searchLocationButton.disabled = true;
+                setStatus('Đang tìm địa điểm trên OpenStreetMap...', 'info');
+
+                try {
+                    const url = new URL('https://nominatim.openstreetmap.org/search');
+                    url.searchParams.set('format', 'jsonv2');
+                    url.searchParams.set('limit', '1');
+                    url.searchParams.set('countrycodes', 'vn');
+                    url.searchParams.set('q', query);
+
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json',
+                        },
+                    });
+
+                    if (! response.ok) {
+                        throw new Error('Không tìm được địa điểm từ OpenStreetMap.');
+                    }
+
+                    const results = await response.json();
+                    const result = results[0];
+
+                    if (! result) {
+                        setStatus('Không tìm thấy địa điểm. Hãy click trực tiếp trên bản đồ để chọn.', 'danger');
+                        return;
+                    }
+
+                    addressInput.value = result.display_name || query;
+                    const position = { lat: result.lat, lng: result.lon };
+                    setLocation(position);
+                    map.setView([Number(result.lat), Number(result.lon)], 17);
+                } catch (error) {
+                    setStatus(error.message || 'Không tìm được địa điểm. Hãy click trực tiếp trên bản đồ để chọn.', 'danger');
+                } finally {
+                    searchLocationButton.disabled = false;
+                }
+            }
+
+            function initLeafletActivityMap() {
+                if (! mapElement || ! window.L) {
+                    setStatus('Không tải được bản đồ OpenStreetMap.', 'danger');
+                    return;
+                }
+
+                const center = [config.center.lat, config.center.lng];
+                map = L.map(mapElement).setView(center, config.hasSelectedLocation ? 17 : 16);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors',
+                }).addTo(map);
+
+                marker = L.marker(center, {
+                    draggable: true,
+                    title: 'Kéo ghim hoặc click bản đồ để chọn vị trí điểm danh',
+                }).addTo(map);
+
+                marker.on('dragend', () => setLocation(marker.getLatLng(), { pan: false }));
+                map.on('click', (event) => setLocation(event.latlng));
+
+                if (config.hasSelectedLocation) {
+                    setLocation(config.center, { pan: false });
+                } else {
+                    setStatus('Đang dùng OpenStreetMap miễn phí. Click bản đồ, kéo ghim hoặc tìm địa điểm để chọn tọa độ.', 'secondary');
+                }
+
+                radiusInput?.addEventListener('input', () => {
+                    const radius = readRadius();
+
+                    if (circle) {
+                        circle.setRadius(radius);
+                        setStatus(`Đã cập nhật bán kính GPS: ${radius}m.`, 'success');
+                    } else {
+                        setStatus(`Bán kính GPS sẽ là ${radius}m sau khi chọn điểm.`, 'secondary');
+                    }
+                });
+
+                searchLocationButton?.addEventListener('click', searchAddress);
+                addressInput?.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        searchAddress();
+                    }
+                });
+
+                currentLocationButton?.addEventListener('click', () => {
+                    if (! navigator.geolocation) {
+                        setStatus('Trình duyệt không hỗ trợ lấy vị trí hiện tại.', 'danger');
+                        return;
+                    }
+
+                    currentLocationButton.disabled = true;
+                    setStatus('Đang lấy vị trí hiện tại...', 'info');
+
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const selectedPosition = {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                            };
+
+                            setLocation(selectedPosition);
+                            map.setView([selectedPosition.lat, selectedPosition.lng], 17);
+                            setStatus(`Đã dùng vị trí hiện tại. Sai số GPS khoảng ${Math.round(position.coords.accuracy)}m.`, 'success');
+                            currentLocationButton.disabled = false;
+                        },
+                        () => {
+                            setStatus('Không lấy được vị trí hiện tại. Hãy cho phép truy cập vị trí hoặc chọn trực tiếp trên bản đồ.', 'danger');
+                            currentLocationButton.disabled = false;
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 15000,
+                            maximumAge: 0,
+                        }
+                    );
+                });
+            }
+
+            initLeafletActivityMap();
+        })();
+    </script>
     @endpush
 @endif
 @endsection
