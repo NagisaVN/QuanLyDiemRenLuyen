@@ -41,39 +41,83 @@
                 vertical-align: middle;
             }
 
+            .drl-table thead th {
+                position: sticky;
+                background-color: #f8f9fa;
+                z-index: 2;
+                box-shadow: inset 0 -1px 0 #dee2e6;
+            }
+
+            /* Fix sticky header with 2 rows */
+            .drl-table thead tr:nth-child(1) th {
+                top: 0;
+            }
+            .drl-table thead tr:nth-child(2) th {
+                top: 40px; /* Approximate height of first row, adjust if needed */
+            }
+
+            .drl-table tbody tr {
+                transition: all 0.2s ease;
+            }
+            .drl-table tbody tr:hover {
+                background-color: rgba(0, 0, 0, 0.015);
+            }
+
             .drl-table .form-control-sm {
-                min-height: 34px;
+                min-height: 38px;
+                border-radius: 8px;
+                transition: all 0.2s;
+            }
+            
+            .drl-table .form-control-sm:focus {
+                border-color: var(--bs-primary);
+                box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.15);
+            }
+
+            /* Hide spin buttons */
+            .drl-table input[type="number"]::-webkit-inner-spin-button,
+            .drl-table input[type="number"]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            .drl-table input[type="number"] {
+                -moz-appearance: textfield;
             }
 
             .drl-note {
                 min-width: 190px;
                 resize: vertical;
+                border-radius: 8px;
+                background-color: #fdfdfd;
+            }
+            .drl-note:focus {
+                background-color: #fff;
             }
         </style>
     @endpush
 @endonce
 
 <div class="table-responsive">
-    <table class="table table-bordered table-sm align-middle drl-table">
+    <table class="table table-bordered align-middle drl-table mb-0">
         <thead class="table-light">
             <tr>
-                <th rowspan="2" class="text-center" style="width: 54px">TT</th>
-                <th rowspan="2" style="min-width: 360px">Nội dung đánh giá</th>
-                <th rowspan="2" class="text-center" style="width: 88px">Điểm tối đa</th>
-                <th colspan="2" class="text-center">Cá nhân đánh giá</th>
-                <th colspan="2" class="text-center">GVCN/GVCV đánh giá</th>
+                <th rowspan="2" class="text-center text-secondary" style="width: 54px">TT</th>
+                <th rowspan="2" class="text-secondary" style="min-width: 360px">Nội dung đánh giá</th>
+                <th rowspan="2" class="text-center text-secondary" style="width: 88px">Điểm tối đa</th>
+                <th colspan="2" class="text-center text-secondary">Cá nhân đánh giá</th>
+                <th colspan="2" class="text-center text-secondary">GVCN/GVCV đánh giá</th>
                 @if ($showHoiDong)
-                    <th colspan="2" class="text-center">CTSV/Hội đồng</th>
+                    <th colspan="2" class="text-center text-secondary">CTSV/Hội đồng</th>
                 @endif
             </tr>
             <tr>
-                <th style="min-width: 220px">Nhận xét hoặc minh chứng</th>
-                <th class="text-center" style="width: 110px">Điểm</th>
-                <th style="min-width: 220px">Nhận xét hoặc minh chứng</th>
-                <th class="text-center" style="width: 110px">Điểm</th>
+                <th class="text-secondary" style="min-width: 220px">Nhận xét hoặc minh chứng</th>
+                <th class="text-center text-secondary" style="width: 110px">Điểm</th>
+                <th class="text-secondary" style="min-width: 220px">Nhận xét hoặc minh chứng</th>
+                <th class="text-center text-secondary" style="width: 110px">Điểm</th>
                 @if ($showHoiDong)
-                    <th style="min-width: 220px">Nhận xét</th>
-                    <th class="text-center" style="width: 110px">Điểm</th>
+                    <th class="text-secondary" style="min-width: 220px">Nhận xét</th>
+                    <th class="text-center text-secondary" style="width: 110px">Điểm</th>
                 @endif
             </tr>
         </thead>
@@ -83,7 +127,7 @@
                     $criterion = $section['criterion'];
                     $indexLabel = $roman[$loop->index] ?? $loop->iteration;
                 @endphp
-                <tr class="table-primary">
+                <tr class="table-primary opacity-75">
                     <th class="text-center">{{ $indexLabel }}</th>
                     <th>{{ $criterion->mo_ta ?? $criterion->ten_tieu_chi }}</th>
                     <th class="text-center">{{ $criterion->diem_toi_da }}</th>

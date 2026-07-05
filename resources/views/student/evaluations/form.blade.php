@@ -9,9 +9,22 @@
     $deadlineText = $dot?->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i');
 @endphp
 
+@push('styles')
+<style>
+    .custom-file-item {
+        transition: all 0.2s ease;
+        background-color: #fff;
+    }
+    .custom-file-item:hover {
+        background-color: #f8f9fa;
+        border-color: #adb5bd !important;
+    }
+</style>
+@endpush
+
 <div class="row g-4">
     <div class="col-xl-8">
-        <form id="evaluation-form" method="POST" action="{{ route('sinh-vien.evaluations.update') }}" class="table-card p-3">
+        <form id="evaluation-form" method="POST" action="{{ route('sinh-vien.evaluations.update') }}" class="table-card p-3 shadow-sm border-0 rounded-4">
             @csrf
             @method('PUT')
             <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -60,12 +73,13 @@
     </div>
 
     <div class="col-xl-4">
-        <div class="table-card p-3 mb-4">
-            <h2 class="h5">Tổng điểm</h2>
+        <div class="position-sticky" style="top: 1.5rem; z-index: 10;">
+            <div class="table-card p-3 mb-4 shadow-sm border-0 rounded-4">
+                <h2 class="h5">Tổng điểm</h2>
             <div class="display-6 text-primary">{{ $phieu->diem_cuoi ?? $phieu->diem_hoi_dong ?? $phieu->diem_gvcn ?? $phieu->diem_tu_cham }}/100</div>
             <div class="text-secondary">Xếp loại: {{ $phieu->xep_loai ?? 'Chưa có' }}</div>
         </div>
-        <div class="table-card p-3">
+        <div class="table-card p-3 shadow-sm border-0 rounded-4">
             <h2 class="h5">Minh chứng</h2>
             <form method="POST" action="{{ route('sinh-vien.evaluations.upload') }}" enctype="multipart/form-data" class="vstack gap-3 mb-3">
                 @csrf
@@ -85,27 +99,41 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label">File ảnh/PDF, tối đa 5MB/file</label>
-                    <input class="form-control" type="file" name="files[]" multiple accept=".jpg,.jpeg,.png,.pdf" @disabled(! $canEdit)>
+                    <label class="form-label fw-medium text-secondary small mb-1">Tệp đính kèm (Ảnh/PDF, tối đa 5MB)</label>
+                    <input class="form-control form-control-sm" type="file" name="files[]" multiple accept=".jpg,.jpeg,.png,.pdf" @disabled(! $canEdit)>
                 </div>
-                <textarea class="form-control" name="mo_ta" rows="2" placeholder="Mô tả minh chứng" @disabled(! $canEdit)></textarea>
-                <button class="btn btn-outline-primary" type="submit" @disabled(! $canEdit)>Tải minh chứng</button>
+                <textarea class="form-control form-control-sm" name="mo_ta" rows="2" placeholder="Nhập mô tả minh chứng..." @disabled(! $canEdit)></textarea>
+                <button class="btn btn-primary btn-sm w-100" type="submit" @disabled(! $canEdit)>
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Tải minh chứng lên
+                </button>
             </form>
-            <div class="list-group list-group-flush">
+            
+            <hr class="my-3 text-secondary opacity-25">
+            
+            <div class="d-flex flex-column gap-2">
                 @forelse ($phieu->minhChungs as $file)
-                    <a class="list-group-item px-0 d-flex justify-content-between align-items-center" href="{{ route('minh-chung.download', $file) }}">
-                        <span>
-                            <i class="bi bi-paperclip me-1"></i>{{ $file->ten_file }}
-                            @if ($file->mucTieuChi)
-                                <span class="text-secondary small d-block">{{ $file->mucTieuChi->ma_muc }}</span>
-                            @endif
-                        </span>
-                        <span class="badge text-bg-secondary">{{ config('ui.statuses.' . $file->trang_thai, $file->trang_thai) }}</span>
+                    <a class="text-decoration-none p-2 border rounded-3 d-flex justify-content-between align-items-center custom-file-item" href="{{ route('minh-chung.download', $file) }}">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden">
+                            <div class="bg-light rounded p-2 text-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-file-earmark-text fs-5"></i>
+                            </div>
+                            <div class="text-truncate">
+                                <div class="text-dark fw-medium text-truncate" style="font-size: 0.9rem;" title="{{ $file->ten_file }}">{{ $file->ten_file }}</div>
+                                @if ($file->mucTieuChi)
+                                    <div class="text-secondary text-truncate" style="font-size: 0.75rem;" title="{{ $file->mucTieuChi->ma_muc }}">{{ $file->mucTieuChi->ma_muc }}</div>
+                                @endif
+                            </div>
+                        </div>
+                        <span class="badge text-bg-secondary ms-2 flex-shrink-0">{{ config('ui.statuses.' . $file->trang_thai, $file->trang_thai) }}</span>
                     </a>
                 @empty
-                    <div class="text-secondary">Chưa có minh chứng.</div>
+                    <div class="text-center text-secondary py-4 border rounded-3 bg-light">
+                        <i class="bi bi-inbox fs-3 d-block mb-2 text-secondary opacity-50"></i>
+                        <span class="small">Chưa có minh chứng.</span>
+                    </div>
                 @endforelse
             </div>
+        </div>
         </div>
     </div>
 </div>
