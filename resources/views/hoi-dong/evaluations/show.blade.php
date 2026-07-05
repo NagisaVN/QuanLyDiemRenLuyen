@@ -5,6 +5,7 @@
 @section('content')
 @php
     $isLocked = $phieu->trang_thai === 'locked' || $phieu->dotDanhGia?->trang_thai === 'published';
+    $canReview = $canReview ?? ($phieu->canFinalReviewStatus() && ! $isLocked);
 @endphp
 
 <form id="hoi-dong-score-form" method="POST" action="{{ route('hoi-dong.evaluations.update', $phieu) }}" class="table-card p-3">
@@ -26,8 +27,10 @@
         <span class="badge text-bg-info">{{ config('ui.statuses.' . $phieu->trang_thai, $phieu->trang_thai) }}</span>
     </div>
 
-    @if ($isLocked)
-        <div class="alert alert-warning">Phiếu đã khóa hoặc đợt đánh giá đã công bố, không thể chỉnh sửa.</div>
+    @if (! $canReview)
+        <div class="alert alert-warning">
+            {{ $isLocked ? 'Phiếu đã khóa hoặc đợt đánh giá đã công bố, không thể chỉnh sửa.' : 'Chỉ có thể xác nhận cuối phiếu đã được GVCN duyệt và còn trong thời gian duyệt.' }}
+        </div>
     @endif
 
     <div class="row g-3 mb-3">
@@ -54,16 +57,16 @@
     @include('evaluations.partials.rubric-table', [
         'rubric' => $rubric,
         'stage' => 'hoi_dong',
-        'canEdit' => ! $isLocked,
+        'canEdit' => $canReview,
         'showHoiDong' => true,
     ])
 
     <label class="form-label">Nhận xét Công Tác Sinh Viên</label>
-    <textarea class="form-control mb-3" name="nhan_xet_hoi_dong" rows="3" @disabled($isLocked)>{{ old('nhan_xet_hoi_dong', $phieu->nhan_xet_hoi_dong) }}</textarea>
+    <textarea class="form-control mb-3" name="nhan_xet_hoi_dong" rows="3" @disabled(! $canReview)>{{ old('nhan_xet_hoi_dong', $phieu->nhan_xet_hoi_dong) }}</textarea>
 </form>
 <div class="d-flex gap-2 flex-wrap mt-3">
-    <button class="btn btn-primary" type="submit" form="hoi-dong-score-form" @disabled($isLocked)>Lưu điểm</button>
-    <button class="btn btn-success" type="submit" form="hoi-dong-score-form" formaction="{{ route('hoi-dong.evaluations.approve', $phieu) }}" formmethod="POST" @disabled($isLocked)>Xác nhận cuối cùng</button>
+    <button class="btn btn-primary" type="submit" form="hoi-dong-score-form" @disabled(! $canReview)>Lưu điểm</button>
+    <button class="btn btn-success" type="submit" form="hoi-dong-score-form" formaction="{{ route('hoi-dong.evaluations.approve', $phieu) }}" formmethod="POST" @disabled(! $canReview)>Xác nhận cuối cùng</button>
     <form method="POST" action="{{ route('hoi-dong.evaluations.lock', $phieu) }}">
         @csrf
         <button class="btn btn-danger" type="submit" @disabled($isLocked)>Khóa phiếu</button>

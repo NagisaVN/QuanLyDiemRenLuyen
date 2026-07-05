@@ -6,6 +6,7 @@
 @php
     $dot = $phieu->dotDanhGia;
     $reviewDeadlinePassed = $dot?->ngay_ket_thuc_gvcn && now()->greaterThan($dot->ngay_ket_thuc_gvcn);
+    $reviewBlockedByStatus = ! $phieu->canGvcnReviewStatus();
 @endphp
 
 <div class="row g-4">
@@ -30,7 +31,11 @@
 
             @if (! $canReview)
                 <div class="alert alert-warning">
-                    {{ $reviewDeadlinePassed ? 'Đã hết thời hạn duyệt phiếu đánh giá.' : 'Hiện không nằm trong thời gian GVCN được duyệt phiếu.' }}
+                    @if ($reviewBlockedByStatus)
+                        Chỉ có thể xác nhận phiếu đang ở trạng thái đã nộp.
+                    @else
+                        {{ $reviewDeadlinePassed ? 'Đã hết thời hạn duyệt phiếu đánh giá.' : 'Hiện không nằm trong thời gian GVCN được duyệt phiếu.' }}
+                    @endif
                 </div>
             @endif
 

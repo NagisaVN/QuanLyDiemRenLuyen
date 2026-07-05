@@ -27,7 +27,7 @@ class EvaluationPeriodCurrentTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_current_periods_ignore_published_and_closed_periods(): void
+    public function test_current_periods_ignore_published_periods_and_teacher_can_use_closed_review_window(): void
     {
         $this->travelTo(Carbon::parse('2026-07-04 10:00:00'));
         $data = $this->baseData();
@@ -56,7 +56,7 @@ class EvaluationPeriodCurrentTest extends TestCase
         $open->update(['trang_thai' => DotDanhGia::STATUS_CLOSED]);
 
         $this->assertNull($periods->getCurrentStudentPeriod());
-        $this->assertNull($periods->getCurrentTeacherPeriod());
+        $this->assertTrue($open->refresh()->is($periods->getCurrentTeacherPeriod()));
     }
 
     public function test_student_moves_from_published_hk1_to_open_hk2_without_overwriting_old_form(): void
@@ -116,6 +116,8 @@ class EvaluationPeriodCurrentTest extends TestCase
             'ten_dot' => 'Đợt cũ học kỳ 2',
         ]);
         $oldForm = $diem->ensurePhieu($data['student']);
+        $diem->submit($oldForm);
+        $diem->confirmGvcn($oldForm->refresh(), $data['admin']);
         $diem->approveFinal($oldForm, $data['admin']);
 
         $periods->close($oldDot, $data['admin']);
@@ -129,6 +131,8 @@ class EvaluationPeriodCurrentTest extends TestCase
         $this->travelTo(now()->addMinutes(3));
 
         $newForm = $diem->ensurePhieu($data['student']);
+        $diem->submit($newForm);
+        $diem->confirmGvcn($newForm->refresh(), $data['admin']);
         $diem->approveFinal($newForm, $data['admin']);
 
         $this->assertSame($data['hk2']->id, $newForm->hoc_ky_id);

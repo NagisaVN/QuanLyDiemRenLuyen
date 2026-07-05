@@ -7,6 +7,7 @@
     $dot = $phieu->dotDanhGia;
     $deadlinePassed = $dot?->ngay_ket_thuc_sinh_vien && now()->greaterThan($dot->ngay_ket_thuc_sinh_vien);
     $deadlineText = $dot?->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i');
+    $submittedWaiting = $phieu->trang_thai === \App\Models\PhieuDanhGia::STATUS_SUBMITTED;
 @endphp
 
 @push('styles')
@@ -47,7 +48,11 @@
 
             @if (! $canEdit)
                 <div class="alert alert-warning">
-                    {{ $deadlinePassed ? 'Đã hết thời hạn nộp phiếu đánh giá.' : 'Phiếu đã được duyệt, đã khóa hoặc không còn trong thời gian chỉnh sửa.' }}
+                    @if ($submittedWaiting)
+                        Đã gửi phiếu, chờ GVCN xác nhận.
+                    @else
+                        {{ $deadlinePassed ? 'Đã hết thời hạn nộp phiếu đánh giá.' : 'Phiếu đã được duyệt, đã khóa hoặc không còn trong thời gian chỉnh sửa.' }}
+                    @endif
                 </div>
             @endif
 
