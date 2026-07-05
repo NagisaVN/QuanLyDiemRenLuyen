@@ -23,7 +23,7 @@
 @endpush
 
 <div class="row g-4">
-    <div class="col-xl-8">
+    <div class="col-12">
         <form id="evaluation-form" method="POST" action="{{ route('sinh-vien.evaluations.update') }}" class="table-card p-3 shadow-sm border-0 rounded-4">
             @csrf
             @method('PUT')
@@ -71,15 +71,18 @@
             </form>
         </div>
     </div>
+</div>
 
-    <div class="col-xl-4">
-        <div class="position-sticky" style="top: 1.5rem; z-index: 10;">
-            <div class="table-card p-3 mb-4 shadow-sm border-0 rounded-4">
-                <h2 class="h5">Tổng điểm</h2>
+<div class="row g-4 mt-2">
+    <div class="col-lg-4 col-xl-3">
+        <div class="table-card p-3 shadow-sm border-0 rounded-4 h-100">
+            <h2 class="h5">Tổng điểm</h2>
             <div class="display-6 text-primary">{{ $phieu->diem_cuoi ?? $phieu->diem_hoi_dong ?? $phieu->diem_gvcn ?? $phieu->diem_tu_cham }}/100</div>
             <div class="text-secondary">Xếp loại: {{ $phieu->xep_loai ?? 'Chưa có' }}</div>
         </div>
-        <div class="table-card p-3 shadow-sm border-0 rounded-4">
+    </div>
+    <div class="col-lg-8 col-xl-9">
+        <div class="table-card p-3 shadow-sm border-0 rounded-4 h-100">
             <h2 class="h5">Minh chứng</h2>
             <form method="POST" action="{{ route('sinh-vien.evaluations.upload') }}" enctype="multipart/form-data" class="vstack gap-3 mb-3">
                 @csrf
@@ -133,7 +136,6 @@
                     </div>
                 @endforelse
             </div>
-        </div>
         </div>
     </div>
 </div>
