@@ -93,11 +93,86 @@
             .drl-note:focus {
                 background-color: #fff;
             }
+
+            /* Custom Scrollbar for the table container */
+            .drl-table-container::-webkit-scrollbar {
+                height: 8px;
+                width: 8px;
+            }
+            .drl-table-container::-webkit-scrollbar-track {
+                background: #f8f9fa;
+                border-radius: 4px;
+            }
+            .drl-table-container::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 4px;
+            }
+            .drl-table-container::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+            
+            /* Cursor styles for dragging */
+            .drl-table-container {
+                cursor: grab;
+            }
+            .drl-table-container:active {
+                cursor: grabbing;
+            }
+            .drl-table-container input,
+            .drl-table-container textarea,
+            .drl-table-container button,
+            .drl-table-container a {
+                cursor: text;
+            }
+            .drl-table-container button,
+            .drl-table-container a {
+                cursor: pointer;
+            }
         </style>
     @endpush
 @endonce
 
-<div class="table-responsive">
+@once
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const slider = document.querySelector('.drl-table-container');
+                let isDown = false;
+                let startX;
+                let scrollLeft;
+
+                if (!slider) return;
+
+                slider.addEventListener('mousedown', (e) => {
+                    // Prevent drag when clicking on form elements
+                    if (['INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SELECT'].includes(e.target.tagName)) return;
+                    
+                    isDown = true;
+                    startX = e.pageX - slider.offsetLeft;
+                    scrollLeft = slider.scrollLeft;
+                });
+                
+                slider.addEventListener('mouseleave', () => {
+                    isDown = false;
+                });
+                
+                slider.addEventListener('mouseup', () => {
+                    isDown = false;
+                });
+                
+                slider.addEventListener('mousemove', (e) => {
+                    if (!isDown) return;
+                    e.preventDefault();
+                    const x = e.pageX - slider.offsetLeft;
+                    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+                    slider.scrollLeft = scrollLeft - walk;
+                });
+            });
+        </script>
+    @endpush
+@endonce
+
+<div class="table-responsive drl-table-container pb-2">
     <table class="table table-bordered align-middle drl-table mb-0">
         <thead class="table-light">
             <tr>
