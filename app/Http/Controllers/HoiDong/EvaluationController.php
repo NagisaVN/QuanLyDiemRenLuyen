@@ -72,7 +72,7 @@ class EvaluationController extends Controller
 
         $service->approveFinal($phieu, $request->user(), $request->input('nhan_xet_hoi_dong'));
 
-        return back()->with('status', 'Đã xác nhận điểm cuối cùng.');
+        return back()->with('status', 'Đã xác nhận điểm rèn luyện cuối cùng.');
     }
 
     public function lock(Request $request, PhieuDanhGia $phieu, DiemRenLuyenService $service)
