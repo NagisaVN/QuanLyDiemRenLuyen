@@ -64,11 +64,8 @@
             </div>
         </form>
         <div class="d-flex gap-2 flex-wrap mt-3">
-            <button class="btn btn-primary" type="submit" form="evaluation-form" @disabled(! $canEdit)>Lưu phiếu</button>
-            <form method="POST" action="{{ route('sinh-vien.evaluations.submit') }}">
-                @csrf
-                <button class="btn btn-success" type="submit" @disabled(! $canEdit)>Nộp phiếu</button>
-            </form>
+            <button class="btn btn-primary" type="submit" form="evaluation-form" name="action" value="save" @disabled(! $canEdit)>Lưu phiếu</button>
+            <button class="btn btn-success" type="submit" form="evaluation-form" name="action" value="submit" @disabled(! $canEdit) onclick="return confirm('Bạn có chắc chắn muốn nộp phiếu? Sau khi nộp sẽ không thể chỉnh sửa.')">Nộp phiếu</button>
         </div>
     </div>
 </div>

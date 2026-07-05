@@ -39,9 +39,15 @@ class EvaluationController extends Controller
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string', 'max:1000'],
             'nhan_xet_sinh_vien' => ['nullable', 'string', 'max:2000'],
+            'action' => ['nullable', 'string'],
         ]);
 
         $service->saveStudentScores($phieu, $data['scores'], $request->user(), $data['nhan_xet_sinh_vien'] ?? null, $data['notes'] ?? []);
+
+        if (($data['action'] ?? null) === 'submit') {
+            $service->submit($phieu);
+            return back()->with('status', 'Đã lưu và nộp phiếu tự đánh giá.');
+        }
 
         return back()->with('status', 'Đã lưu điểm tự đánh giá.');
     }
