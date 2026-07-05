@@ -30,6 +30,24 @@ return new class extends Migration
             });
         }
 
+        if (! Schema::hasIndex('chi_tiet_danh_gias', 'chi_tiet_danh_gias_phieu_danh_gia_id_index')) {
+            Schema::table('chi_tiet_danh_gias', function (Blueprint $table) {
+                $table->index('phieu_danh_gia_id', 'chi_tiet_danh_gias_phieu_danh_gia_id_index');
+            });
+        }
+
+        if (! Schema::hasIndex('chi_tiet_danh_gias', 'chi_tiet_danh_gias_tieu_chi_id_index')) {
+            Schema::table('chi_tiet_danh_gias', function (Blueprint $table) {
+                $table->index('tieu_chi_id', 'chi_tiet_danh_gias_tieu_chi_id_index');
+            });
+        }
+
+        if (! Schema::hasIndex('chi_tiet_danh_gias', 'chi_tiet_danh_gias_muc_tieu_chi_id_index')) {
+            Schema::table('chi_tiet_danh_gias', function (Blueprint $table) {
+                $table->index('muc_tieu_chi_id', 'chi_tiet_danh_gias_muc_tieu_chi_id_index');
+            });
+        }
+
         if (Schema::hasIndex('chi_tiet_danh_gias', 'chi_tiet_danh_gias_phieu_danh_gia_id_tieu_chi_id_unique')) {
             Schema::table('chi_tiet_danh_gias', function (Blueprint $table) {
                 $table->dropUnique('chi_tiet_danh_gias_phieu_danh_gia_id_tieu_chi_id_unique');
@@ -96,6 +114,18 @@ return new class extends Migration
             Schema::table('chi_tiet_danh_gias', function (Blueprint $table) {
                 $table->dropUnique('chi_tiet_danh_gias_phieu_muc_unique');
             });
+        }
+
+        foreach ([
+            'chi_tiet_danh_gias_muc_tieu_chi_id_index',
+            'chi_tiet_danh_gias_tieu_chi_id_index',
+            'chi_tiet_danh_gias_phieu_danh_gia_id_index',
+        ] as $index) {
+            if (Schema::hasIndex('chi_tiet_danh_gias', $index)) {
+                Schema::table('chi_tiet_danh_gias', function (Blueprint $table) use ($index) {
+                    $table->dropIndex($index);
+                });
+            }
         }
 
         $detailColumns = array_values(array_filter(
