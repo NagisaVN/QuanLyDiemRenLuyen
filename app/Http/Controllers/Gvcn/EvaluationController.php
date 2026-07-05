@@ -14,12 +14,20 @@ class EvaluationController extends Controller
     public function index(Request $request)
     {
         $classIds = $request->user()->lopPhuTrachs()->pluck('id');
+        $currentDot = app(DotDanhGiaService::class)->getCurrentTeacherPeriod();
         $forms = PhieuDanhGia::with(['sinhVien.lop', 'hocKy', 'dotDanhGia'])
             ->whereHas('sinhVien', fn ($query) => $query->whereIn('lop_id', $classIds))
+            ->when(
+                $currentDot,
+                fn ($query) => $query
+                    ->where('dot_danh_gia_id', $currentDot->id)
+                    ->where('trang_thai', PhieuDanhGia::STATUS_SUBMITTED),
+                fn ($query) => $query->whereRaw('1 = 0'),
+            )
             ->latest()
             ->paginate(15);
 
-        return view('gvcn.evaluations.index', compact('forms'));
+        return view('gvcn.evaluations.index', compact('forms', 'currentDot'));
     }
 
     public function show(Request $request, PhieuDanhGia $phieu, DotDanhGiaService $dotService)
@@ -29,7 +37,7 @@ class EvaluationController extends Controller
 
         return view('gvcn.evaluations.show', [
             'phieu' => $phieu,
-            'canReview' => $dotService->openForGvcn($phieu->dotDanhGia),
+            'canReview' => $phieu->canGvcnReviewStatus() && $dotService->openForGvcn($phieu->dotDanhGia),
             'rubric' => app(DiemRenLuyenService::class)->rubricForPhieu($phieu),
         ]);
     }
@@ -67,7 +75,7 @@ class EvaluationController extends Controller
 
         $service->confirmGvcn($phieu, $request->user(), $request->input('nhan_xet_gvcn'));
 
-        return back()->with('status', 'Đã xác nhận phiếu cấp GVCN.');
+        return back()->with('status', 'Đã xác nhận phiếu, chờ CTSV duyệt cuối.');
     }
 
     public function reviewEvidence(Request $request, MinhChung $minhChung)

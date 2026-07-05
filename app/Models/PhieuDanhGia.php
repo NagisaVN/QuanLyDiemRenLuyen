@@ -15,6 +15,18 @@ class PhieuDanhGia extends Model
     public const STATUS_APPROVED = 'approved';
     public const STATUS_LOCKED = 'locked';
 
+    public const STUDENT_EDITABLE_STATUSES = [
+        self::STATUS_DRAFT,
+    ];
+
+    public const GVCN_REVIEWABLE_STATUSES = [
+        self::STATUS_SUBMITTED,
+    ];
+
+    public const FINAL_REVIEWABLE_STATUSES = [
+        self::STATUS_REVIEWED,
+    ];
+
     protected $table = 'phieu_danh_gias';
     protected $guarded = [];
 
@@ -61,5 +73,20 @@ class PhieuDanhGia extends Model
     public function diemRenLuyen()
     {
         return $this->hasOne(DiemRenLuyen::class);
+    }
+
+    public function canStudentEditStatus(): bool
+    {
+        return in_array($this->trang_thai, self::STUDENT_EDITABLE_STATUSES, true);
+    }
+
+    public function canGvcnReviewStatus(): bool
+    {
+        return in_array($this->trang_thai, self::GVCN_REVIEWABLE_STATUSES, true);
+    }
+
+    public function canFinalReviewStatus(): bool
+    {
+        return in_array($this->trang_thai, self::FINAL_REVIEWABLE_STATUSES, true);
     }
 }

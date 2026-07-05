@@ -95,7 +95,7 @@ class DiemRenLuyenService
 
     public function canStudentEdit(PhieuDanhGia $phieu): bool
     {
-        if (in_array($phieu->trang_thai, [PhieuDanhGia::STATUS_REVIEWED, PhieuDanhGia::STATUS_APPROVED, PhieuDanhGia::STATUS_LOCKED], true)) {
+        if (! $phieu->canStudentEditStatus()) {
             return false;
         }
 
@@ -179,7 +179,7 @@ class DiemRenLuyenService
 
     public function submit(PhieuDanhGia $phieu): PhieuDanhGia
     {
-        if (! $this->canStudentEdit($phieu)) {
+        if (! $phieu->canStudentEditStatus() || ! $this->canStudentEdit($phieu)) {
             throw ValidationException::withMessages(['phieu' => 'Phiếu không còn được nộp hoặc chỉnh sửa.']);
         }
 
@@ -198,6 +198,10 @@ class DiemRenLuyenService
     {
         $phieu->loadMissing('dotDanhGia');
 
+        if (! in_array($stage, ['gvcn', 'hoi_dong'], true)) {
+            throw ValidationException::withMessages(['phieu' => 'Cấp duyệt không hợp lệ.']);
+        }
+
         if ($phieu->trang_thai === PhieuDanhGia::STATUS_LOCKED) {
             throw ValidationException::withMessages(['phieu' => 'Phiếu đã khóa.']);
         }
@@ -206,7 +210,15 @@ class DiemRenLuyenService
             throw ValidationException::withMessages(['phieu' => 'Đợt đánh giá đã công bố, không thể chỉnh sửa.']);
         }
 
-        if ($stage === 'gvcn' && ! app(DotDanhGiaService::class)->openForGvcn($phieu->dotDanhGia)) {
+        if ($stage === 'gvcn' && ! $phieu->canGvcnReviewStatus()) {
+            throw ValidationException::withMessages(['phieu' => 'Chỉ có thể duyệt phiếu đã nộp.']);
+        }
+
+        if ($stage === 'hoi_dong' && ! $phieu->canFinalReviewStatus()) {
+            throw ValidationException::withMessages(['phieu' => 'Chỉ có thể xác nhận cuối phiếu đã được GVCN duyệt.']);
+        }
+
+        if (! app(DotDanhGiaService::class)->openForGvcn($phieu->dotDanhGia)) {
             throw ValidationException::withMessages(['phieu' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
         }
 
@@ -254,6 +266,10 @@ class DiemRenLuyenService
     {
         $phieu->loadMissing('dotDanhGia');
 
+        if (! $phieu->canGvcnReviewStatus()) {
+            throw ValidationException::withMessages(['phieu' => 'Chỉ có thể duyệt phiếu đã nộp.']);
+        }
+
         if (! app(DotDanhGiaService::class)->openForGvcn($phieu->dotDanhGia)) {
             throw ValidationException::withMessages(['phieu' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
         }
@@ -291,8 +307,16 @@ class DiemRenLuyenService
     {
         $phieu->loadMissing('dotDanhGia');
 
+        if (! $phieu->canFinalReviewStatus()) {
+            throw ValidationException::withMessages(['phieu' => 'Chỉ có thể xác nhận cuối phiếu đã được GVCN duyệt.']);
+        }
+
         if ($phieu->dotDanhGia?->trang_thai === DotDanhGia::STATUS_PUBLISHED) {
             throw ValidationException::withMessages(['phieu' => 'Đợt đánh giá đã công bố, không thể chỉnh sửa.']);
+        }
+
+        if (! app(DotDanhGiaService::class)->openForGvcn($phieu->dotDanhGia)) {
+            throw ValidationException::withMessages(['phieu' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
         }
 
         $this->ensureRubricDetails($phieu);

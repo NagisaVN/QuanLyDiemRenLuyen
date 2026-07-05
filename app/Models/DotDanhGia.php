@@ -61,7 +61,7 @@ class DotDanhGia extends Model
 
     public function isGvcnOpen(): bool
     {
-        return $this->trang_thai === self::STATUS_OPEN
+        return in_array($this->trang_thai, [self::STATUS_OPEN, self::STATUS_CLOSED], true)
             && now()->betweenIncluded($this->ngay_bat_dau_gvcn, $this->ngay_ket_thuc_gvcn);
     }
 }

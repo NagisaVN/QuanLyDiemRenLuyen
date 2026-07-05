@@ -7,28 +7,37 @@ use App\Http\Controllers\Controller;
 use App\Models\HocKy;
 use App\Models\PhieuDanhGia;
 use App\Services\DiemRenLuyenService;
+use App\Services\DotDanhGiaService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
 class EvaluationController extends Controller
 {
-    public function index()
+    public function index(DotDanhGiaService $dotService)
     {
+        $currentDot = $dotService->getCurrentTeacherPeriod();
         $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia'])
-            ->whereIn('trang_thai', ['reviewed', 'approved', 'locked'])
+            ->when(
+                $currentDot,
+                fn ($query) => $query
+                    ->where('dot_danh_gia_id', $currentDot->id)
+                    ->where('trang_thai', PhieuDanhGia::STATUS_REVIEWED),
+                fn ($query) => $query->whereRaw('1 = 0'),
+            )
             ->latest()
             ->paginate(20);
 
-        return view('hoi-dong.evaluations.index', compact('forms'));
+        return view('hoi-dong.evaluations.index', compact('forms', 'currentDot'));
     }
 
-    public function show(PhieuDanhGia $phieu, DiemRenLuyenService $service)
+    public function show(PhieuDanhGia $phieu, DiemRenLuyenService $service, DotDanhGiaService $dotService)
     {
         $phieu->load(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 'minhChungs.mucTieuChi']);
 
         return view('hoi-dong.evaluations.show', [
             'phieu' => $phieu,
+            'canReview' => $phieu->canFinalReviewStatus() && $dotService->openForGvcn($phieu->dotDanhGia),
             'rubric' => $service->rubricForPhieu($phieu),
         ]);
     }

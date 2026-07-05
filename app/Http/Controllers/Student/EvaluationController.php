@@ -46,7 +46,7 @@ class EvaluationController extends Controller
 
         if (($data['action'] ?? null) === 'submit') {
             $service->submit($phieu);
-            return back()->with('status', 'Đã lưu và nộp phiếu tự đánh giá.');
+            return back()->with('status', 'Đã gửi phiếu, chờ GVCN xác nhận.');
         }
 
         return back()->with('status', 'Đã lưu điểm tự đánh giá.');
@@ -56,7 +56,7 @@ class EvaluationController extends Controller
     {
         $service->submit($service->ensurePhieu($request->user()->sinhVien));
 
-        return back()->with('status', 'Đã nộp phiếu tự đánh giá.');
+        return back()->with('status', 'Đã gửi phiếu, chờ GVCN xác nhận.');
     }
 
     public function upload(Request $request, DiemRenLuyenService $service)

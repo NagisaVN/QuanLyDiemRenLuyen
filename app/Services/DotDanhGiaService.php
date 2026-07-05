@@ -37,7 +37,7 @@ class DotDanhGiaService
     {
         $query = DotDanhGia::query()
             ->with(['namHoc', 'hocKy'])
-            ->where('trang_thai', DotDanhGia::STATUS_OPEN)
+            ->whereIn('trang_thai', [DotDanhGia::STATUS_OPEN, DotDanhGia::STATUS_CLOSED])
             ->where('ngay_bat_dau_gvcn', '<=', now())
             ->where('ngay_ket_thuc_gvcn', '>=', now())
             ->orderByDesc('ngay_bat_dau_gvcn')
@@ -96,7 +96,7 @@ class DotDanhGiaService
             return false;
         }
 
-        return in_array($phieu->trang_thai, [PhieuDanhGia::STATUS_DRAFT, PhieuDanhGia::STATUS_SUBMITTED], true)
+        return $phieu->canStudentEditStatus()
             && ! $phieu->reviewed_at
             && ! $phieu->locked_at;
     }
