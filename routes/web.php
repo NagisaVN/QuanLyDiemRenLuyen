@@ -126,6 +126,7 @@ Route::middleware(['auth', 'role:hoi_dong_khoa'])->prefix('hoi-dong')->name('hoi
     Route::put('/phieu-danh-gia/{phieu}', [HoiDongEvaluationController::class, 'update'])->name('evaluations.update');
     Route::match(['post', 'put'], '/phieu-danh-gia/{phieu}/xac-nhan', [HoiDongEvaluationController::class, 'approve'])->name('evaluations.approve');
     Route::post('/phieu-danh-gia/{phieu}/khoa', [HoiDongEvaluationController::class, 'lock'])->name('evaluations.lock');
+    Route::get('/export', [HoiDongEvaluationController::class, 'exportIndex'])->name('export.index');
     Route::get('/export/excel', [HoiDongEvaluationController::class, 'exportExcel'])->name('export.excel');
     Route::get('/export/pdf', [HoiDongEvaluationController::class, 'exportPdf'])->name('export.pdf');
 });

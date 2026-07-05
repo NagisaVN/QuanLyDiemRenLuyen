@@ -4,6 +4,7 @@ namespace App\Http\Controllers\HoiDong;
 
 use App\Exports\DiemRenLuyenExport;
 use App\Http\Controllers\Controller;
+use App\Models\HocKy;
 use App\Models\PhieuDanhGia;
 use App\Services\DiemRenLuyenService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -72,15 +73,29 @@ class EvaluationController extends Controller
         return back()->with('status', 'Đã khóa phiếu.');
     }
 
-    public function exportExcel()
+    public function exportIndex()
     {
-        return Excel::download(new DiemRenLuyenExport, 'diem-ren-luyen.xlsx');
+        $hocKys = HocKy::with('namHoc')->orderByDesc('id')->get();
+        return view('hoi-dong.evaluations.export', compact('hocKys'));
     }
 
-    public function exportPdf()
+    public function exportExcel(Request $request)
     {
-        $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy'])->whereIn('trang_thai', ['approved', 'locked'])->get();
-        $pdf = Pdf::loadView('exports.report-pdf', compact('forms'))->setPaper('a4', 'landscape');
+        $request->validate(['hoc_ky_id' => 'required|exists:hoc_kys,id']);
+        return Excel::download(new DiemRenLuyenExport(null, $request->hoc_ky_id), 'diem-ren-luyen.xlsx');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $request->validate(['hoc_ky_id' => 'required|exists:hoc_kys,id']);
+        $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy.namHoc'])
+            ->where('hoc_ky_id', $request->hoc_ky_id)
+            ->whereIn('trang_thai', ['approved', 'locked'])
+            ->get();
+            
+        $hocKy = HocKy::with('namHoc')->find($request->hoc_ky_id);
+        
+        $pdf = Pdf::loadView('exports.report-pdf', compact('forms', 'hocKy'))->setPaper('a4', 'landscape');
 
         return $pdf->download('bao-cao-diem-ren-luyen.pdf');
     }

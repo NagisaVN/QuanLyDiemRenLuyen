@@ -11,10 +11,13 @@
 </head>
 <body>
     <h2>Báo cáo điểm rèn luyện</h2>
+    @if(isset($hocKy))
+        <p><strong>Học kỳ:</strong> {{ $hocKy->ten_hoc_ky }} - <strong>Năm học:</strong> {{ $hocKy->namHoc->ten_nam_hoc ?? '' }}</p>
+    @endif
     <table>
         <thead>
             <tr>
-                <th>Mã SV</th><th>Họ tên</th><th>Lớp</th><th>Khoa</th><th>Học kỳ</th><th>Điểm</th><th>Xếp loại</th><th>Trạng thái</th>
+                <th>Mã SV</th><th>Họ tên</th><th>Lớp</th><th>Khoa</th><th>Học kỳ</th><th>Năm học</th><th>Điểm</th><th>Xếp loại</th><th>Trạng thái</th>
             </tr>
         </thead>
         <tbody>
@@ -25,6 +28,7 @@
                     <td>{{ $form->sinhVien->lop->ten_lop }}</td>
                     <td>{{ $form->sinhVien->lop->khoa->ten_khoa }}</td>
                     <td>{{ $form->hocKy->ten_hoc_ky }}</td>
+                    <td>{{ $form->hocKy->namHoc->ten_nam_hoc ?? '' }}</td>
                     <td>{{ $form->diem_cuoi }}</td>
                     <td>{{ $form->xep_loai }}</td>
                     <td>{{ config('ui.statuses.' . $form->trang_thai, $form->trang_thai) }}</td>

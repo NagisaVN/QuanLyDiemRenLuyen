@@ -10,8 +10,10 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 
 class DiemRenLuyenExport implements FromCollection, WithHeadings, WithMapping
 {
-    public function __construct(private readonly ?DotDanhGia $dotDanhGia = null)
-    {
+    public function __construct(
+        private readonly ?DotDanhGia $dotDanhGia = null,
+        private readonly ?int $hocKyId = null
+    ) {
     }
 
     public function collection()
@@ -22,6 +24,7 @@ class DiemRenLuyenExport implements FromCollection, WithHeadings, WithMapping
                 'phieuDanhGia',
                 fn ($formQuery) => $formQuery->where('dot_danh_gia_id', $this->dotDanhGia->id)
             ))
+            ->when($this->hocKyId, fn ($query) => $query->where('hoc_ky_id', $this->hocKyId))
             ->latest()
             ->get();
     }
