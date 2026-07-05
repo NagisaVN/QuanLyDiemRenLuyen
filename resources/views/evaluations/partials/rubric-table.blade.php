@@ -2,6 +2,14 @@
     $stage = $stage ?? 'student';
     $canEdit = $canEdit ?? false;
     $showHoiDong = $showHoiDong ?? true;
+    
+    $status = $phieu?->trang_thai ?? '';
+    $gvcnReviewed = in_array($status, [\App\Models\PhieuDanhGia::STATUS_REVIEWED, \App\Models\PhieuDanhGia::STATUS_APPROVED, \App\Models\PhieuDanhGia::STATUS_LOCKED]);
+    $hoiDongReviewed = in_array($status, [\App\Models\PhieuDanhGia::STATUS_APPROVED, \App\Models\PhieuDanhGia::STATUS_LOCKED]);
+    
+    $showGvcnScore = $gvcnReviewed || $stage === 'gvcn' || $stage === 'hoi_dong';
+    $showHoiDongScore = $hoiDongReviewed || $stage === 'hoi_dong';
+    
     $roman = ['I', 'II', 'III', 'IV', 'V'];
     $scoreValue = function ($detail, array $fields): mixed {
         foreach ($fields as $field) {
@@ -240,10 +248,10 @@
                     <th></th>
                     <th class="text-center fs-6 text-primary">{{ $section['totals']['student'] }}</th>
                     <th></th>
-                    <th class="text-center fs-6 text-primary">{{ $section['totals']['gvcn'] }}</th>
+                    <th class="text-center fs-6 text-primary">{{ $showGvcnScore ? $section['totals']['gvcn'] : '-' }}</th>
                     @if ($showHoiDong)
                         <th></th>
-                        <th class="text-center fs-6 text-primary">{{ $section['totals']['hoi_dong'] }}</th>
+                        <th class="text-center fs-6 text-primary">{{ $showHoiDongScore ? $section['totals']['hoi_dong'] : '-' }}</th>
                     @endif
                 </tr>
 
@@ -292,14 +300,14 @@
                                 @if ($stage === 'gvcn')
                                     {!! $noteInput($item, $detail, 'ghi_chu_gvcn') !!}
                                 @else
-                                    <div class="small">{{ $detail?->ghi_chu_gvcn ?: '-' }}</div>
+                                    <div class="small">{{ $showGvcnScore ? ($detail?->ghi_chu_gvcn ?: '-') : '' }}</div>
                                 @endif
                             </td>
                             <td class="text-center">
                                 @if ($stage === 'gvcn')
                                     {!! $scoreInput($item, $detail, 'diem_gvcn', ['diem_tu_cham']) !!}
                                 @else
-                                    {{ $scoreValue($detail, ['diem_gvcn', 'diem_tu_cham']) }}
+                                    {{ $showGvcnScore ? $scoreValue($detail, ['diem_gvcn', 'diem_tu_cham']) : '-' }}
                                 @endif
                             </td>
                             @if ($showHoiDong)
@@ -307,14 +315,14 @@
                                     @if ($stage === 'hoi_dong')
                                         {!! $noteInput($item, $detail, 'ghi_chu_hoi_dong') !!}
                                     @else
-                                        <div class="small">{{ $detail?->ghi_chu_hoi_dong ?: '-' }}</div>
+                                        <div class="small">{{ $showHoiDongScore ? ($detail?->ghi_chu_hoi_dong ?: '-') : '' }}</div>
                                     @endif
                                 </td>
                                 <td class="text-center">
                                     @if ($stage === 'hoi_dong')
                                         {!! $scoreInput($item, $detail, 'diem_hoi_dong', ['diem_gvcn', 'diem_tu_cham']) !!}
                                     @else
-                                        {{ $scoreValue($detail, ['diem_hoi_dong', 'diem_gvcn', 'diem_tu_cham']) }}
+                                        {{ $showHoiDongScore ? $scoreValue($detail, ['diem_hoi_dong', 'diem_gvcn', 'diem_tu_cham']) : '-' }}
                                     @endif
                                 </td>
                             @endif
@@ -329,10 +337,10 @@
                     <td></td>
                     <td class="text-center">{{ $section['totals']['student'] }}</td>
                     <td></td>
-                    <td class="text-center">{{ $section['totals']['gvcn'] }}</td>
+                    <td class="text-center">{{ $showGvcnScore ? $section['totals']['gvcn'] : '-' }}</td>
                     @if ($showHoiDong)
                         <td></td>
-                        <td class="text-center">{{ $section['totals']['hoi_dong'] }}</td>
+                        <td class="text-center">{{ $showHoiDongScore ? $section['totals']['hoi_dong'] : '-' }}</td>
                     @endif
                 </tr>
             @endforeach
