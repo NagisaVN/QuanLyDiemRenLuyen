@@ -128,6 +128,11 @@
             .drl-table-container a {
                 cursor: pointer;
             }
+
+            /* Collapsible sections */
+            .cursor-pointer { cursor: pointer; }
+            .transition-transform { transition: transform 0.2s ease; }
+            .rotate-m90 { transform: rotate(-90deg); }
         </style>
     @endpush
 @endonce
@@ -168,6 +173,29 @@
                     slider.scrollLeft = scrollLeft - walk;
                 });
             });
+
+            // Toggle section rows
+            window.toggleSection = function(index) {
+                const rows = document.querySelectorAll(`.section-row-${index}`);
+                const icon = document.querySelector(`.section-icon-${index}`);
+                let isHidden = false;
+                
+                rows.forEach(row => {
+                    if (row.classList.contains('d-none')) {
+                        row.classList.remove('d-none');
+                        isHidden = false;
+                    } else {
+                        row.classList.add('d-none');
+                        isHidden = true;
+                    }
+                });
+                
+                if (isHidden) {
+                    icon.classList.add('rotate-m90');
+                } else {
+                    icon.classList.remove('rotate-m90');
+                }
+            };
         </script>
     @endpush
 @endonce
@@ -202,8 +230,11 @@
                     $criterion = $section['criterion'];
                     $indexLabel = $roman[$loop->index] ?? $loop->iteration;
                 @endphp
-                <tr class="table-primary opacity-75">
-                    <th class="text-center">{{ $indexLabel }}</th>
+                <tr class="table-primary opacity-75 cursor-pointer" onclick="toggleSection({{ $loop->index }})">
+                    <th class="text-center">
+                        <i class="bi bi-chevron-down section-icon-{{ $loop->index }} me-1 transition-transform rotate-m90"></i>
+                        {{ $indexLabel }}
+                    </th>
                     <th>{{ $criterion->mo_ta ?? $criterion->ten_tieu_chi }}</th>
                     <th class="text-center">{{ $criterion->diem_toi_da }}</th>
                     <th colspan="{{ $showHoiDong ? 6 : 4 }}"></th>
@@ -217,13 +248,13 @@
                         $evidence = $row['evidence'] ?? collect();
                     @endphp
                     @if ($isHeading)
-                        <tr class="table-light">
+                        <tr class="table-light section-row-{{ $loop->parent->index }} d-none">
                             <td></td>
                             <td class="fw-semibold">{{ $item->ten_muc }}</td>
                             <td colspan="{{ $showHoiDong ? 7 : 5 }}"></td>
                         </tr>
                     @else
-                        <tr>
+                        <tr class="section-row-{{ $loop->parent->index }} d-none">
                             <td class="text-secondary small">{{ $item->ma_muc }}</td>
                             <td>{{ $item->ten_muc }}</td>
                             <td class="text-center">{{ $item->diem_toi_da }}</td>
@@ -284,7 +315,7 @@
                     @endif
                 @endforeach
 
-                <tr class="fw-semibold">
+                <tr class="fw-semibold section-row-{{ $loop->index }} d-none">
                     <td></td>
                     <td>Cộng mục ({{ $indexLabel }}):</td>
                     <td class="text-center">{{ $criterion->diem_toi_da }}</td>
