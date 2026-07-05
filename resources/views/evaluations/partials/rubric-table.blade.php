@@ -237,7 +237,14 @@
                     </th>
                     <th>{{ $criterion->mo_ta ?? $criterion->ten_tieu_chi }}</th>
                     <th class="text-center">{{ $criterion->diem_toi_da }}</th>
-                    <th colspan="{{ $showHoiDong ? 6 : 4 }}"></th>
+                    <th></th>
+                    <th class="text-center fs-6 text-primary">{{ $section['totals']['student'] }}</th>
+                    <th></th>
+                    <th class="text-center fs-6 text-primary">{{ $section['totals']['gvcn'] }}</th>
+                    @if ($showHoiDong)
+                        <th></th>
+                        <th class="text-center fs-6 text-primary">{{ $section['totals']['hoi_dong'] }}</th>
+                    @endif
                 </tr>
 
                 @foreach ($section['rows'] as $row)
