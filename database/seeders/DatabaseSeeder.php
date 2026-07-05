@@ -13,8 +13,8 @@ use App\Models\NamHoc;
 use App\Models\PhieuDanhGia;
 use App\Models\SinhVien;
 use App\Models\ThongBao;
-use App\Models\TieuChi;
 use App\Models\User;
+use App\Support\DrlRubric;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
@@ -120,36 +120,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        $criteria = [
-            ['TC01', 'Ý thức học tập', 'Chuyên cần, thái độ học tập, kết quả rèn luyện học thuật'],
-            ['TC02', 'Chấp hành nội quy', 'Tuân thủ quy chế, pháp luật, nội quy nhà trường'],
-            ['TC03', 'Hoạt động chính trị - xã hội', 'Tham gia Đoàn - Hội, hoạt động lớp, khoa, trường'],
-            ['TC04', 'Phẩm chất công dân', 'Quan hệ cộng đồng, tinh thần trách nhiệm và văn hóa ứng xử'],
-            ['TC05', 'Công tác phụ trách và thành tích', 'Ban cán sự, đại diện sinh viên, thành tích đặc biệt'],
-        ];
-
-        foreach ($criteria as $index => [$code, $name, $description]) {
-            $tieuChi = TieuChi::updateOrCreate([
-                'ma_tieu_chi' => $code,
-            ], [
-                'ten_tieu_chi' => $name,
-                'mo_ta' => $description,
-                'diem_toi_da' => 20,
-                'thu_tu' => $index + 1,
-                'is_active' => true,
-            ]);
-
-            foreach ([5, 10, 15, 20] as $point) {
-                MucTieuChi::firstOrCreate([
-                    'tieu_chi_id' => $tieuChi->id,
-                    'ten_muc' => "Mức {$point} điểm",
-                ], [
-                    'diem_toi_da' => $point,
-                    'thu_tu' => $point,
-                    'is_active' => true,
-                ]);
-            }
-        }
+        DrlRubric::sync();
 
         $activity = HoatDong::firstOrCreate([
             'ma_hoat_dong' => 'HD001',
@@ -200,11 +171,14 @@ class DatabaseSeeder extends Seeder
             'xep_loai' => 'Khá',
         ]);
         $phieu->update(['dot_danh_gia_id' => $dotDanhGia->id]);
-        foreach (TieuChi::all() as $tieuChi) {
+        foreach (MucTieuChi::query()->where('loai', 'item')->where('is_active', true)->get() as $mucTieuChi) {
             ChiTietDanhGia::firstOrCreate([
                 'phieu_danh_gia_id' => $phieu->id,
-                'tieu_chi_id' => $tieuChi->id,
-            ], ['diem_tu_cham' => 15]);
+                'muc_tieu_chi_id' => $mucTieuChi->id,
+            ], [
+                'tieu_chi_id' => $mucTieuChi->tieu_chi_id,
+                'diem_tu_cham' => max(0, min(2, (int) $mucTieuChi->diem_toi_da)),
+            ]);
         }
 
         ThongBao::firstOrCreate([

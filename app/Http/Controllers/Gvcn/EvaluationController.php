@@ -25,11 +25,12 @@ class EvaluationController extends Controller
     public function show(Request $request, PhieuDanhGia $phieu, DotDanhGiaService $dotService)
     {
         $this->authorizeClass($request, $phieu);
-        $phieu->load(['sinhVien.lop', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'minhChungs']);
+        $phieu->load(['sinhVien.lop', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 'minhChungs.mucTieuChi']);
 
         return view('gvcn.evaluations.show', [
             'phieu' => $phieu,
             'canReview' => $dotService->openForGvcn($phieu->dotDanhGia),
+            'rubric' => app(DiemRenLuyenService::class)->rubricForPhieu($phieu),
         ]);
     }
 
@@ -38,10 +39,12 @@ class EvaluationController extends Controller
         $this->authorizeClass($request, $phieu);
         $data = $request->validate([
             'scores' => ['required', 'array'],
+            'notes' => ['nullable', 'array'],
+            'notes.*' => ['nullable', 'string', 'max:1000'],
             'nhan_xet_gvcn' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'gvcn', $data['nhan_xet_gvcn'] ?? null);
+        $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'gvcn', $data['nhan_xet_gvcn'] ?? null, $data['notes'] ?? []);
 
         return back()->with('status', 'Đã lưu điểm GVCN.');
     }
@@ -53,10 +56,12 @@ class EvaluationController extends Controller
         if ($request->filled('scores')) {
             $data = $request->validate([
                 'scores' => ['required', 'array'],
+                'notes' => ['nullable', 'array'],
+                'notes.*' => ['nullable', 'string', 'max:1000'],
                 'nhan_xet_gvcn' => ['nullable', 'string', 'max:2000'],
             ]);
 
-            $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'gvcn', $data['nhan_xet_gvcn'] ?? null);
+            $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'gvcn', $data['nhan_xet_gvcn'] ?? null, $data['notes'] ?? []);
             $phieu->refresh();
         }
 

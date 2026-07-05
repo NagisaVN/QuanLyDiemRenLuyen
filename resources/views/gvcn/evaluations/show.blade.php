@@ -34,28 +34,13 @@
                 </div>
             @endif
 
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tiêu chí</th>
-                            <th>Tự chấm</th>
-                            <th>GVCN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($phieu->chiTietDanhGias as $detail)
-                            <tr>
-                                <td>{{ $detail->tieuChi->ten_tieu_chi }} <span class="text-secondary">/ {{ $detail->tieuChi->diem_toi_da }}</span></td>
-                                <td>{{ $detail->diem_tu_cham }}</td>
-                                <td>
-                                    <input class="form-control" type="number" min="0" max="{{ $detail->tieuChi->diem_toi_da }}" name="scores[{{ $detail->tieu_chi_id }}]" value="{{ old('scores.'.$detail->tieu_chi_id, $detail->diem_gvcn ?? $detail->diem_tu_cham) }}" @disabled(! $canReview)>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            @include('evaluations.partials.rubric-table', [
+                'rubric' => $rubric,
+                'stage' => 'gvcn',
+                'canEdit' => $canReview,
+                'showHoiDong' => true,
+            ])
+
             <label class="form-label">Nhận xét GVCN</label>
             <textarea class="form-control mb-3" name="nhan_xet_gvcn" rows="3" @disabled(! $canReview)>{{ old('nhan_xet_gvcn', $phieu->nhan_xet_gvcn) }}</textarea>
         </form>
@@ -70,6 +55,9 @@
             @forelse ($phieu->minhChungs as $file)
                 <div class="border-bottom py-2">
                     <a href="{{ route('minh-chung.download', $file) }}">{{ $file->ten_file }}</a>
+                    @if ($file->mucTieuChi)
+                        <div class="small text-secondary">{{ $file->mucTieuChi->ma_muc }} - {{ $file->mucTieuChi->ten_muc }}</div>
+                    @endif
                     <form method="POST" action="{{ route('gvcn.evidence.review', $file) }}" class="row g-2 mt-2">
                         @csrf
                         <div class="col-7">

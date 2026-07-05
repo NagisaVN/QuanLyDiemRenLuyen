@@ -22,19 +22,26 @@ class EvaluationController extends Controller
         return view('hoi-dong.evaluations.index', compact('forms'));
     }
 
-    public function show(PhieuDanhGia $phieu)
+    public function show(PhieuDanhGia $phieu, DiemRenLuyenService $service)
     {
-        return view('hoi-dong.evaluations.show', ['phieu' => $phieu->load(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'minhChungs'])]);
+        $phieu->load(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 'minhChungs.mucTieuChi']);
+
+        return view('hoi-dong.evaluations.show', [
+            'phieu' => $phieu,
+            'rubric' => $service->rubricForPhieu($phieu),
+        ]);
     }
 
     public function update(Request $request, PhieuDanhGia $phieu, DiemRenLuyenService $service)
     {
         $data = $request->validate([
             'scores' => ['required', 'array'],
+            'notes' => ['nullable', 'array'],
+            'notes.*' => ['nullable', 'string', 'max:1000'],
             'nhan_xet_hoi_dong' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'hoi_dong', $data['nhan_xet_hoi_dong'] ?? null);
+        $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'hoi_dong', $data['nhan_xet_hoi_dong'] ?? null, $data['notes'] ?? []);
 
         return back()->with('status', 'Đã lưu điểm hội đồng.');
     }
@@ -44,10 +51,12 @@ class EvaluationController extends Controller
         if ($request->filled('scores')) {
             $data = $request->validate([
                 'scores' => ['required', 'array'],
+                'notes' => ['nullable', 'array'],
+                'notes.*' => ['nullable', 'string', 'max:1000'],
                 'nhan_xet_hoi_dong' => ['nullable', 'string', 'max:2000'],
             ]);
 
-            $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'hoi_dong', $data['nhan_xet_hoi_dong'] ?? null);
+            $service->saveReviewerScores($phieu, $data['scores'], $request->user(), 'hoi_dong', $data['nhan_xet_hoi_dong'] ?? null, $data['notes'] ?? []);
             $phieu->refresh();
         }
 

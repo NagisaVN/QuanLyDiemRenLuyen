@@ -9,6 +9,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @if ($user)
+        <meta name="user-id" content="{{ $user->id }}">
+    @endif
     <title>@yield('title', config('app.name'))</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
@@ -348,6 +351,9 @@
 <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@1.13.3/js/jquery.overlayScrollbars.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+@if (file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json')))
+    @vite('resources/js/app.js')
+@endif
 @stack('scripts')
 </body>
 </html>

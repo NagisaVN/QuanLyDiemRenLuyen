@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\MinhChung;
+use App\Models\MucTieuChi;
 use App\Models\PhieuDanhGia;
 use App\Services\DiemRenLuyenService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,6 +27,7 @@ class EvaluationController extends Controller
         return view('student.evaluations.form', [
             'phieu' => $phieu,
             'canEdit' => $service->canStudentEdit($phieu),
+            'rubric' => $service->rubricForPhieu($phieu),
         ]);
     }
 
@@ -34,10 +36,12 @@ class EvaluationController extends Controller
         $phieu = $service->ensurePhieu($request->user()->sinhVien);
         $data = $request->validate([
             'scores' => ['required', 'array'],
+            'notes' => ['nullable', 'array'],
+            'notes.*' => ['nullable', 'string', 'max:1000'],
             'nhan_xet_sinh_vien' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $service->saveStudentScores($phieu, $data['scores'], $request->user(), $data['nhan_xet_sinh_vien'] ?? null);
+        $service->saveStudentScores($phieu, $data['scores'], $request->user(), $data['nhan_xet_sinh_vien'] ?? null, $data['notes'] ?? []);
 
         return back()->with('status', 'Đã lưu điểm tự đánh giá.');
     }
@@ -59,10 +63,15 @@ class EvaluationController extends Controller
 
         $data = $request->validate([
             'tieu_chi_id' => ['nullable', 'exists:tieu_chis,id'],
+            'muc_tieu_chi_id' => ['nullable', 'exists:muc_tieu_chis,id'],
             'mo_ta' => ['nullable', 'string', 'max:1000'],
             'files' => ['required', 'array', 'max:5'],
             'files.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
+
+        $mucTieuChi = isset($data['muc_tieu_chi_id'])
+            ? MucTieuChi::query()->find($data['muc_tieu_chi_id'])
+            : null;
 
         if ($phieu->minhChungs()->count() + count($request->file('files', [])) > 5) {
             throw ValidationException::withMessages(['files' => 'Mỗi phiếu chỉ được tải tối đa 5 file.']);
@@ -73,7 +82,8 @@ class EvaluationController extends Controller
             MinhChung::create([
                 'sinh_vien_id' => $phieu->sinh_vien_id,
                 'phieu_danh_gia_id' => $phieu->id,
-                'tieu_chi_id' => $data['tieu_chi_id'] ?? null,
+                'tieu_chi_id' => $mucTieuChi?->tieu_chi_id ?? ($data['tieu_chi_id'] ?? null),
+                'muc_tieu_chi_id' => $mucTieuChi?->id,
                 'uploaded_by' => $request->user()->id,
                 'ten_file' => $file->getClientOriginalName(),
                 'duong_dan' => $path,
@@ -107,7 +117,8 @@ class EvaluationController extends Controller
     public function print(Request $request, DiemRenLuyenService $service)
     {
         $phieu = $service->ensurePhieu($request->user()->sinhVien);
-        $pdf = Pdf::loadView('exports.phieu-pdf', compact('phieu'));
+        $rubric = $service->rubricForPhieu($phieu);
+        $pdf = Pdf::loadView('exports.phieu-pdf', compact('phieu', 'rubric'))->setPaper('a4', 'landscape');
 
         return $pdf->download("phieu-danh-gia-{$phieu->id}.pdf");
     }

@@ -110,14 +110,21 @@ class DotDanhGiaService
             ->where('ngay_ket_thuc_gvcn', '<', now())
             ->chunkById(50, function ($dots) use (&$count, $actor) {
                 foreach ($dots as $dot) {
-                    // Sau hạn GVCN, các phiếu chưa chốt không còn được chỉnh ở bất kỳ cấp nào.
-                    $count += $dot->phieuDanhGias()
+                    $dot->phieuDanhGias()
+                        ->with(['sinhVien.user', 'sinhVien.lop.gvcn', 'dotDanhGia'])
                         ->whereNotIn('trang_thai', [PhieuDanhGia::STATUS_APPROVED, PhieuDanhGia::STATUS_LOCKED])
-                        ->update([
-                            'trang_thai' => PhieuDanhGia::STATUS_LOCKED,
-                            'locked_at' => now(),
-                            'locked_by' => $actor?->id,
-                        ]);
+                        ->chunkById(100, function ($forms) use (&$count, $actor): void {
+                            foreach ($forms as $phieu) {
+                                $phieu->update([
+                                    'trang_thai' => PhieuDanhGia::STATUS_LOCKED,
+                                    'locked_at' => now(),
+                                    'locked_by' => $actor?->id,
+                                ]);
+
+                                $count++;
+                                app(EvaluationStatusBroadcaster::class)->locked($phieu->refresh(), 'Phiếu đã bị khóa do quá hạn duyệt GVCN.');
+                            }
+                        });
                 }
             });
 
@@ -188,5 +195,7 @@ class DotDanhGiaService
                     'locked_by' => $user->id,
                 ]);
         });
+
+        app(EvaluationStatusBroadcaster::class)->periodPublished($dotDanhGia->refresh());
     }
 }

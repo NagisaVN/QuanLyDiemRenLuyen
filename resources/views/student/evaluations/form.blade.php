@@ -7,7 +7,6 @@
     $dot = $phieu->dotDanhGia;
     $deadlinePassed = $dot?->ngay_ket_thuc_sinh_vien && now()->greaterThan($dot->ngay_ket_thuc_sinh_vien);
     $deadlineText = $dot?->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i');
-    $showReviewedScores = $phieu->diem_gvcn !== null || $phieu->diem_hoi_dong !== null || $phieu->diem_cuoi !== null || in_array($phieu->trang_thai, ['reviewed', 'approved', 'locked'], true);
 @endphp
 
 <div class="row g-4">
@@ -39,43 +38,13 @@
                 </div>
             @endif
 
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tiêu chí</th>
-                            <th style="width: 140px">Tối đa</th>
-                            <th style="width: 170px">Điểm tự chấm</th>
-                            @if ($showReviewedScores)
-                                <th style="width: 130px">GVCN</th>
-                                <th style="width: 170px">Công Tác Sinh Viên</th>
-                            @endif
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($phieu->chiTietDanhGias->sortBy('tieuChi.thu_tu') as $detail)
-                            @php
-                                $gvcnScore = $detail->diem_gvcn ?? ($phieu->diem_gvcn !== null ? $detail->diem_tu_cham : null);
-                                $ctsvScore = $detail->diem_hoi_dong ?? (($phieu->diem_hoi_dong !== null || $phieu->diem_cuoi !== null) ? ($gvcnScore ?? $detail->diem_tu_cham) : null);
-                            @endphp
-                            <tr>
-                                <td>
-                                    <div class="fw-semibold">{{ $detail->tieuChi->ten_tieu_chi }}</div>
-                                    <div class="small text-secondary">{{ $detail->tieuChi->mo_ta }}</div>
-                                </td>
-                                <td>{{ $detail->tieuChi->diem_toi_da }}</td>
-                                <td>
-                                    <input class="form-control" type="number" min="0" max="{{ $detail->tieuChi->diem_toi_da }}" name="scores[{{ $detail->tieu_chi_id }}]" value="{{ old('scores.'.$detail->tieu_chi_id, $detail->diem_tu_cham) }}" @disabled(! $canEdit)>
-                                </td>
-                                @if ($showReviewedScores)
-                                    <td>{{ $gvcnScore ?? '-' }}</td>
-                                    <td>{{ $ctsvScore ?? '-' }}</td>
-                                @endif
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            @include('evaluations.partials.rubric-table', [
+                'rubric' => $rubric,
+                'stage' => 'student',
+                'canEdit' => $canEdit,
+                'showHoiDong' => true,
+            ])
+
             <div class="mb-3">
                 <label class="form-label">Nhận xét sinh viên</label>
                 <textarea class="form-control" name="nhan_xet_sinh_vien" rows="3" @disabled(! $canEdit)>{{ old('nhan_xet_sinh_vien', $phieu->nhan_xet_sinh_vien) }}</textarea>
@@ -101,11 +70,17 @@
             <form method="POST" action="{{ route('sinh-vien.evaluations.upload') }}" enctype="multipart/form-data" class="vstack gap-3 mb-3">
                 @csrf
                 <div>
-                    <label class="form-label">Gắn với tiêu chí</label>
-                    <select class="form-select" name="tieu_chi_id" @disabled(! $canEdit)>
+                    <label class="form-label">Gắn với dòng đánh giá</label>
+                    <select class="form-select" name="muc_tieu_chi_id" @disabled(! $canEdit)>
                         <option value="">Chung cho phiếu</option>
-                        @foreach ($phieu->chiTietDanhGias as $detail)
-                            <option value="{{ $detail->tieu_chi_id }}">{{ $detail->tieuChi->ten_tieu_chi }}</option>
+                        @foreach ($rubric as $section)
+                            <optgroup label="{{ $section['criterion']->ten_tieu_chi }}">
+                                @foreach ($section['rows'] as $row)
+                                    @if ($row['item']->loai === \App\Models\MucTieuChi::TYPE_ITEM)
+                                        <option value="{{ $row['item']->id }}">{{ $row['item']->ma_muc }} - {{ $row['item']->ten_muc }}</option>
+                                    @endif
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                 </div>
@@ -119,7 +94,12 @@
             <div class="list-group list-group-flush">
                 @forelse ($phieu->minhChungs as $file)
                     <a class="list-group-item px-0 d-flex justify-content-between align-items-center" href="{{ route('minh-chung.download', $file) }}">
-                        <span><i class="bi bi-paperclip me-1"></i>{{ $file->ten_file }}</span>
+                        <span>
+                            <i class="bi bi-paperclip me-1"></i>{{ $file->ten_file }}
+                            @if ($file->mucTieuChi)
+                                <span class="text-secondary small d-block">{{ $file->mucTieuChi->ma_muc }}</span>
+                            @endif
+                        </span>
                         <span class="badge text-bg-secondary">{{ config('ui.statuses.' . $file->trang_thai, $file->trang_thai) }}</span>
                     </a>
                 @empty

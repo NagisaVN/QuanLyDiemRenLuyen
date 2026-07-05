@@ -32,4 +32,9 @@ class MinhChung extends Model
     {
         return $this->belongsTo(TieuChi::class);
     }
+
+    public function mucTieuChi()
+    {
+        return $this->belongsTo(MucTieuChi::class);
+    }
 }

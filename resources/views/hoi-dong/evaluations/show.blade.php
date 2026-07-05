@@ -51,33 +51,13 @@
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Tiêu chí</th>
-                    <th>Tự chấm</th>
-                    <th>GVCN</th>
-                    <th>Công Tác Sinh Viên</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($phieu->chiTietDanhGias as $detail)
-                    @php
-                        $gvcnScore = $detail->diem_gvcn ?? $detail->diem_tu_cham;
-                    @endphp
-                    <tr>
-                        <td>{{ $detail->tieuChi->ten_tieu_chi }} <span class="text-secondary">/ {{ $detail->tieuChi->diem_toi_da }}</span></td>
-                        <td>{{ $detail->diem_tu_cham }}</td>
-                        <td>{{ $gvcnScore }}</td>
-                        <td>
-                            <input class="form-control" type="number" min="0" max="{{ $detail->tieuChi->diem_toi_da }}" name="scores[{{ $detail->tieu_chi_id }}]" value="{{ old('scores.'.$detail->tieu_chi_id, $detail->diem_hoi_dong ?? $gvcnScore) }}" @disabled($isLocked)>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+    @include('evaluations.partials.rubric-table', [
+        'rubric' => $rubric,
+        'stage' => 'hoi_dong',
+        'canEdit' => ! $isLocked,
+        'showHoiDong' => true,
+    ])
+
     <label class="form-label">Nhận xét Công Tác Sinh Viên</label>
     <textarea class="form-control mb-3" name="nhan_xet_hoi_dong" rows="3" @disabled($isLocked)>{{ old('nhan_xet_hoi_dong', $phieu->nhan_xet_hoi_dong) }}</textarea>
 </form>
