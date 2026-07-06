@@ -16,7 +16,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2 class="h4 mb-1">{{ $dot->exists ? 'Sửa đợt đánh giá' : 'Tạo đợt đánh giá' }}</h2>
-            <div class="text-secondary">Sinh viên chỉ thao tác trong hạn sinh viên; GVCN chỉ chấm trong hạn GVCN.</div>
+            <div class="text-secondary">Khi ở trạng thái "Đã kích hoạt", hệ thống sẽ tự động mở/đóng cho Sinh viên và GVCN theo đúng lịch hẹn bên dưới.</div>
         </div>
         <a class="btn btn-outline-secondary" href="{{ route('admin.dot-danh-gia.index') }}">Quay lại</a>
     </div>

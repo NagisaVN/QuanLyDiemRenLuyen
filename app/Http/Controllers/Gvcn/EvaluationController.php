@@ -14,14 +14,16 @@ class EvaluationController extends Controller
     public function index(Request $request)
     {
         $classIds = $request->user()->lopPhuTrachs()->pluck('id');
-        $currentDot = app(DotDanhGiaService::class)->getCurrentTeacherPeriod();
+        $currentDot = app(DotDanhGiaService::class)->getCurrentTeacherPeriod() 
+            ?? \App\Models\DotDanhGia::whereIn('trang_thai', ['open', 'closed', 'published'])->latest('id')->first();
+
         $forms = PhieuDanhGia::with(['sinhVien.lop', 'hocKy', 'dotDanhGia'])
             ->whereHas('sinhVien', fn ($query) => $query->whereIn('lop_id', $classIds))
             ->when(
                 $currentDot,
                 fn ($query) => $query
                     ->where('dot_danh_gia_id', $currentDot->id)
-                    ->where('trang_thai', PhieuDanhGia::STATUS_SUBMITTED),
+                    ->whereIn('trang_thai', [PhieuDanhGia::STATUS_SUBMITTED, PhieuDanhGia::STATUS_REVIEWED, PhieuDanhGia::STATUS_APPROVED, PhieuDanhGia::STATUS_LOCKED]),
                 fn ($query) => $query->whereRaw('1 = 0'),
             )
             ->latest()

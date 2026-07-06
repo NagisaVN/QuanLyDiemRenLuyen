@@ -19,9 +19,20 @@ class EvaluationController extends Controller
         try {
             $phieu = $service->ensurePhieu($request->user()->sinhVien);
         } catch (ValidationException $exception) {
-            return view('student.evaluations.closed', [
-                'message' => collect($exception->errors())->flatten()->first() ?: 'Đã hết thời hạn nộp phiếu đánh giá.',
-            ]);
+            $phieu = PhieuDanhGia::with([
+                'hocKy.namHoc', 'dotDanhGia', 'sinhVien.lop.khoa', 
+                'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 
+                'minhChungs.tieuChi', 'minhChungs.mucTieuChi'
+            ])
+            ->where('sinh_vien_id', $request->user()->sinhVien->id)
+            ->latest('id')
+            ->first();
+
+            if (!$phieu) {
+                return view('student.evaluations.closed', [
+                    'message' => collect($exception->errors())->flatten()->first() ?: 'Đã hết thời hạn đánh giá.',
+                ]);
+            }
         }
 
         return view('student.evaluations.form', [
