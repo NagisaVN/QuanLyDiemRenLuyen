@@ -10,14 +10,16 @@ use App\Models\NamHoc;
 use App\Models\PhieuDanhGia;
 use App\Services\DotDanhGiaService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DotDanhGiaController extends Controller
 {
-    public function index()
+    public function index(DotDanhGiaService $service)
     {
+        $service->syncAll();
         $dots = DotDanhGia::query()
             ->with(['namHoc', 'hocKy', 'creator'])
             ->latest('id')
@@ -38,6 +40,7 @@ class DotDanhGiaController extends Controller
     {
         DotDanhGia::create([
             ...$this->validated($request),
+            'trang_thai' => DotDanhGia::STATUS_DRAFT,
             'created_by' => $request->user()->id,
         ]);
 
@@ -46,7 +49,7 @@ class DotDanhGiaController extends Controller
 
     public function edit(DotDanhGia $dotDanhGia)
     {
-        abort_if($dotDanhGia->trang_thai === DotDanhGia::STATUS_PUBLISHED, 403);
+        abort_if(now()->greaterThanOrEqualTo($dotDanhGia->ngay_bat_dau_sinh_vien), 403);
 
         return view('admin.dot-danh-gia.form', [
             'dot' => $dotDanhGia,
@@ -56,7 +59,7 @@ class DotDanhGiaController extends Controller
 
     public function update(Request $request, DotDanhGia $dotDanhGia)
     {
-        abort_if($dotDanhGia->trang_thai === DotDanhGia::STATUS_PUBLISHED, 403);
+        abort_if(now()->greaterThanOrEqualTo($dotDanhGia->ngay_bat_dau_sinh_vien), 403);
 
         $dotDanhGia->update([
             ...$this->validated($request),
@@ -68,7 +71,7 @@ class DotDanhGiaController extends Controller
 
     public function destroy(DotDanhGia $dotDanhGia)
     {
-        if ($dotDanhGia->trang_thai !== DotDanhGia::STATUS_DRAFT) {
+        if ($dotDanhGia->effectiveStatus() !== DotDanhGia::STATUS_DRAFT) {
             throw ValidationException::withMessages(['dot_danh_gia' => 'Chỉ có thể xóa đợt nháp.']);
         }
 
@@ -124,7 +127,7 @@ class DotDanhGiaController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'ten_dot' => ['required', 'string', 'max:255'],
             'nam_hoc_id' => ['required', 'exists:nam_hocs,id'],
             'hoc_ky_id' => [
@@ -135,14 +138,15 @@ class DotDanhGiaController extends Controller
             'ngay_ket_thuc_sinh_vien' => ['required', 'date', 'after_or_equal:ngay_bat_dau_sinh_vien'],
             'ngay_bat_dau_gvcn' => ['required', 'date', 'after_or_equal:ngay_ket_thuc_sinh_vien'],
             'ngay_ket_thuc_gvcn' => ['required', 'date', 'after_or_equal:ngay_bat_dau_gvcn'],
-            'ngay_cong_bo' => ['nullable', 'date', 'after_or_equal:ngay_ket_thuc_gvcn'],
-            'trang_thai' => ['required', Rule::in([
-                DotDanhGia::STATUS_DRAFT,
-                DotDanhGia::STATUS_OPEN,
-                DotDanhGia::STATUS_CLOSED,
-            ])],
+            'ngay_cong_bo' => ['required', 'date', 'after_or_equal:ngay_ket_thuc_gvcn'],
             'mo_ta' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        foreach (['ngay_bat_dau_sinh_vien', 'ngay_ket_thuc_sinh_vien', 'ngay_bat_dau_gvcn', 'ngay_ket_thuc_gvcn', 'ngay_cong_bo'] as $field) {
+            $data[$field] = Carbon::parse($data[$field], config('app.display_timezone'))->utc();
+        }
+
+        return $data;
     }
 
     private function formOptions(): array

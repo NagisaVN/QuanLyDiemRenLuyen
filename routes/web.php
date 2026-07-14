@@ -12,7 +12,6 @@ use App\Http\Controllers\Student\ActivityController as StudentActivityController
 use App\Http\Controllers\Student\EvaluationController as StudentEvaluationController;
 use Illuminate\Support\Facades\Route;
 
-
 Route::get('/', [DashboardController::class, 'home']);
 
 Route::get('/dashboard', [DashboardController::class, 'redirect'])->middleware(['auth'])->name('dashboard');
@@ -45,15 +44,6 @@ Route::middleware(['auth', 'role:admin|hoi_dong_khoa'])
         Route::delete('/dot-danh-gia/{dotDanhGia}', [DotDanhGiaController::class, 'destroy'])
             ->middleware('permission:manage_dot_danh_gia')
             ->name('dot-danh-gia.destroy');
-        Route::post('/dot-danh-gia/{dotDanhGia}/open', [DotDanhGiaController::class, 'open'])
-            ->middleware('permission:open_dot_danh_gia')
-            ->name('dot-danh-gia.open');
-        Route::post('/dot-danh-gia/{dotDanhGia}/close', [DotDanhGiaController::class, 'close'])
-            ->middleware('permission:close_dot_danh_gia')
-            ->name('dot-danh-gia.close');
-        Route::post('/dot-danh-gia/{dotDanhGia}/publish', [DotDanhGiaController::class, 'publish'])
-            ->middleware('permission:publish_dot_danh_gia')
-            ->name('dot-danh-gia.publish');
         Route::get('/dot-danh-gia/{dotDanhGia}/ket-qua', [DotDanhGiaController::class, 'results'])
             ->middleware('permission:manage_dot_danh_gia')
             ->name('dot-danh-gia.results');

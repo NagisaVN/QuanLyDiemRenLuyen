@@ -9,4 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('backup:database')->dailyAt('01:00');
-Schedule::command('evaluations:lock-expired')->hourly();
+Schedule::command('evaluations:sync-statuses')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();

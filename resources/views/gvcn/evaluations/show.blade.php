@@ -22,7 +22,7 @@
                     </div>
                     @if ($dot)
                         <div class="text-secondary small mt-1">
-                            Đợt: {{ $dot->ten_dot }} · Hạn duyệt: {{ $dot->ngay_ket_thuc_gvcn?->format('d/m/Y H:i') }}
+                            Đợt: {{ $dot->ten_dot }} · Hạn duyệt: {{ $dot->displayDate($dot->ngay_ket_thuc_gvcn) }} (giờ Việt Nam)
                         </div>
                     @endif
                 </div>

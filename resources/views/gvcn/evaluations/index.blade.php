@@ -28,7 +28,7 @@
                                 <div class="small text-secondary">{{ $form->dotDanhGia->ten_dot }}</div>
                             @endif
                         </td>
-                        <td>{{ $form->dotDanhGia?->ngay_ket_thuc_gvcn?->format('d/m/Y H:i') ?? 'Chưa đặt' }}</td>
+                        <td>{{ $form->dotDanhGia?->displayDate($form->dotDanhGia->ngay_ket_thuc_gvcn) ?? 'Chưa đặt' }}</td>
                         <td>{{ $form->diem_tu_cham }}</td>
                         <td><span class="badge text-bg-info">{{ config('ui.statuses.' . $form->trang_thai, $form->trang_thai) }}</span></td>
                         <td class="text-end"><a class="btn btn-sm btn-primary" href="{{ route('gvcn.evaluations.show', $form) }}">Xem</a></td>

@@ -13,7 +13,7 @@ class CheckGvcnReviewPeriod
     public function handle(Request $request, Closure $next): Response
     {
         $service = app(DotDanhGiaService::class);
-        $service->lockExpiredForms($request->user());
+        $service->syncAll();
 
         $phieu = $request->route('phieu');
         $minhChung = $request->route('minhChung');
@@ -22,7 +22,7 @@ class CheckGvcnReviewPeriod
             : $minhChung?->loadMissing('phieuDanhGia.dotDanhGia')->phieuDanhGia?->dotDanhGia;
         $dot ??= $service->getCurrentTeacherPeriod();
 
-        if (!$request->isMethodSafe() && ! $service->openForGvcn($dot)) {
+        if (! $request->isMethodSafe() && ! $service->openForGvcn($dot)) {
             return back()->withErrors(['dot_danh_gia' => 'Đã hết thời hạn duyệt phiếu đánh giá.']);
         }
 

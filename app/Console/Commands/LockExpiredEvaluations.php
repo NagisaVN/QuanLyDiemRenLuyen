@@ -9,7 +9,7 @@ class LockExpiredEvaluations extends Command
 {
     protected $signature = 'evaluations:lock-expired';
 
-    protected $description = 'Lock evaluation forms after the GVCN review deadline has passed';
+    protected $description = 'Deprecated alias: synchronize evaluation periods and lock expired forms';
 
     public function handle(DotDanhGiaService $service): int
     {

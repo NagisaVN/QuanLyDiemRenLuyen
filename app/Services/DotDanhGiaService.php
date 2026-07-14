@@ -20,9 +20,9 @@ class DotDanhGiaService
     {
         $query = DotDanhGia::query()
             ->with(['namHoc', 'hocKy'])
-            ->where('trang_thai', DotDanhGia::STATUS_OPEN)
+            ->where('trang_thai', '!=', DotDanhGia::STATUS_PUBLISHED)
             ->where('ngay_bat_dau_sinh_vien', '<=', now())
-            ->where('ngay_ket_thuc_sinh_vien', '>=', now())
+            ->where('ngay_ket_thuc_sinh_vien', '>', now())
             ->orderByDesc('ngay_bat_dau_sinh_vien')
             ->orderByDesc('id');
 
@@ -37,9 +37,9 @@ class DotDanhGiaService
     {
         $query = DotDanhGia::query()
             ->with(['namHoc', 'hocKy'])
-            ->whereIn('trang_thai', [DotDanhGia::STATUS_OPEN, DotDanhGia::STATUS_CLOSED])
+            ->where('trang_thai', '!=', DotDanhGia::STATUS_PUBLISHED)
             ->where('ngay_bat_dau_gvcn', '<=', now())
-            ->where('ngay_ket_thuc_gvcn', '>=', now())
+            ->where('ngay_ket_thuc_gvcn', '>', now())
             ->orderByDesc('ngay_bat_dau_gvcn')
             ->orderByDesc('id');
 
@@ -81,6 +81,22 @@ class DotDanhGiaService
         return $this->getCurrentStudentPeriod($hocKy);
     }
 
+    public function getNextStudentPeriod(?HocKy $hocKy = null): ?DotDanhGia
+    {
+        $query = DotDanhGia::query()
+            ->with(['namHoc', 'hocKy'])
+            ->where('trang_thai', '!=', DotDanhGia::STATUS_PUBLISHED)
+            ->where('ngay_bat_dau_sinh_vien', '>', now())
+            ->orderBy('ngay_bat_dau_sinh_vien')
+            ->orderBy('id');
+
+        if ($hocKy) {
+            $query->where('hoc_ky_id', $hocKy->id);
+        }
+
+        return $query->first();
+    }
+
     public function openForGvcn(?DotDanhGia $dotDanhGia = null): bool
     {
         $dotDanhGia ??= $this->getCurrentTeacherPeriod();
@@ -90,9 +106,15 @@ class DotDanhGiaService
 
     public function canStudentEdit(PhieuDanhGia $phieu): bool
     {
-        $dot = $phieu->dotDanhGia;
+        $dot = $phieu->loadMissing('dotDanhGia')->dotDanhGia;
 
         if (! $dot?->isStudentOpen()) {
+            return false;
+        }
+
+        $current = $this->getCurrentStudentPeriod($dot->hocKy);
+
+        if (! $current?->is($dot)) {
             return false;
         }
 
@@ -103,32 +125,75 @@ class DotDanhGiaService
 
     public function lockExpiredForms(?User $actor = null): int
     {
-        $count = 0;
+        return $this->syncAll($actor)['locked'];
+    }
 
-        DotDanhGia::query()
-            ->whereIn('trang_thai', [DotDanhGia::STATUS_OPEN, DotDanhGia::STATUS_CLOSED, DotDanhGia::STATUS_PUBLISHED])
-            ->where('ngay_ket_thuc_gvcn', '<', now())
-            ->chunkById(50, function ($dots) use (&$count, $actor) {
-                foreach ($dots as $dot) {
-                    $dot->phieuDanhGias()
-                        ->with(['sinhVien.user', 'sinhVien.lop.gvcn', 'dotDanhGia'])
-                        ->whereNotIn('trang_thai', [PhieuDanhGia::STATUS_APPROVED, PhieuDanhGia::STATUS_LOCKED])
-                        ->chunkById(100, function ($forms) use (&$count, $actor): void {
-                            foreach ($forms as $phieu) {
-                                $phieu->update([
-                                    'trang_thai' => PhieuDanhGia::STATUS_LOCKED,
-                                    'locked_at' => now(),
-                                    'locked_by' => $actor?->id,
-                                ]);
+    /** @return array{periods: int, locked: int, published: int} */
+    public function syncAll(?User $actor = null): array
+    {
+        $result = ['periods' => 0, 'locked' => 0, 'published' => 0];
 
-                                $count++;
-                                app(EvaluationStatusBroadcaster::class)->locked($phieu->refresh(), 'Phiếu đã bị khóa do quá hạn duyệt GVCN.');
-                            }
-                        });
+        DotDanhGia::query()->orderBy('id')->chunkById(50, function ($periods) use (&$result, $actor): void {
+            foreach ($periods as $period) {
+                $synced = $this->syncPeriod($period, $actor);
+                $result['periods']++;
+                $result['locked'] += $synced['locked'];
+                $result['published'] += $synced['published'] ? 1 : 0;
+            }
+        });
+
+        return $result;
+    }
+
+    /** @return array{locked: int, published: bool} */
+    public function syncPeriod(DotDanhGia $dotDanhGia, ?User $actor = null): array
+    {
+        $lockedIds = [];
+        $published = false;
+
+        DB::transaction(function () use ($dotDanhGia, $actor, &$lockedIds, &$published): void {
+            $period = DotDanhGia::query()->lockForUpdate()->findOrFail($dotDanhGia->id);
+            $desiredStatus = $period->effectiveStatus();
+            $now = now();
+
+            if ($now->greaterThanOrEqualTo($period->ngay_ket_thuc_gvcn)) {
+                $forms = $period->phieuDanhGias()
+                    ->whereNotIn('trang_thai', [PhieuDanhGia::STATUS_APPROVED, PhieuDanhGia::STATUS_LOCKED])
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($forms as $form) {
+                    $form->update([
+                        'trang_thai' => PhieuDanhGia::STATUS_LOCKED,
+                        'locked_at' => $now,
+                        'locked_by' => $actor?->id,
+                    ]);
+                    $lockedIds[] = $form->id;
                 }
-            });
+            }
 
-        return $count;
+            if ($period->trang_thai !== $desiredStatus) {
+                $published = $desiredStatus === DotDanhGia::STATUS_PUBLISHED;
+                $period->update([
+                    'trang_thai' => $desiredStatus,
+                    'updated_by' => $actor?->id ?? $period->updated_by,
+                ]);
+            }
+        });
+
+        foreach (PhieuDanhGia::query()
+            ->with(['sinhVien.user', 'sinhVien.lop.gvcn', 'dotDanhGia'])
+            ->whereIn('id', $lockedIds)->get() as $form) {
+            app(EvaluationStatusBroadcaster::class)->locked($form, 'Phiếu đã bị khóa do quá hạn duyệt GVCN.');
+        }
+
+        if ($published) {
+            app(EvaluationStatusBroadcaster::class)->periodPublished($dotDanhGia->refresh());
+        }
+
+        $dotDanhGia->refresh();
+
+        return ['locked' => count($lockedIds), 'published' => $published];
     }
 
     public function reopen(DotDanhGia $dotDanhGia, User $user): void

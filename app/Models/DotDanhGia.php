@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,11 +11,15 @@ class DotDanhGia extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_OPEN = 'open';
+
     public const STATUS_CLOSED = 'closed';
+
     public const STATUS_PUBLISHED = 'published';
 
     protected $table = 'dot_danh_gias';
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -55,13 +60,44 @@ class DotDanhGia extends Model
 
     public function isStudentOpen(): bool
     {
-        return $this->trang_thai === self::STATUS_OPEN
-            && now()->betweenIncluded($this->ngay_bat_dau_sinh_vien, $this->ngay_ket_thuc_sinh_vien);
+        $now = now();
+
+        return $this->effectiveStatus($now) === self::STATUS_OPEN
+            && $now->greaterThanOrEqualTo($this->ngay_bat_dau_sinh_vien)
+            && $now->lessThan($this->ngay_ket_thuc_sinh_vien);
     }
 
     public function isGvcnOpen(): bool
     {
-        return in_array($this->trang_thai, [self::STATUS_OPEN, self::STATUS_CLOSED], true)
-            && now()->betweenIncluded($this->ngay_bat_dau_gvcn, $this->ngay_ket_thuc_gvcn);
+        $now = now();
+
+        return $this->effectiveStatus($now) !== self::STATUS_PUBLISHED
+            && $now->greaterThanOrEqualTo($this->ngay_bat_dau_gvcn)
+            && $now->lessThan($this->ngay_ket_thuc_gvcn);
+    }
+
+    public function effectiveStatus(?CarbonInterface $at = null): string
+    {
+        $at ??= now();
+
+        if ($this->trang_thai === self::STATUS_PUBLISHED
+            || ($this->ngay_cong_bo && $at->greaterThanOrEqualTo($this->ngay_cong_bo))) {
+            return self::STATUS_PUBLISHED;
+        }
+
+        if ($at->greaterThanOrEqualTo($this->ngay_ket_thuc_sinh_vien)) {
+            return self::STATUS_CLOSED;
+        }
+
+        if ($at->greaterThanOrEqualTo($this->ngay_bat_dau_sinh_vien)) {
+            return self::STATUS_OPEN;
+        }
+
+        return self::STATUS_DRAFT;
+    }
+
+    public function displayDate(?CarbonInterface $date, string $format = 'd/m/Y H:i'): ?string
+    {
+        return $date?->copy()->timezone(config('app.display_timezone'))->format($format);
     }
 }

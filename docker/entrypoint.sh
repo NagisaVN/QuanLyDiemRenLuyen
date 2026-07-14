@@ -35,6 +35,10 @@ if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     fi
 fi
 
+if [ "${RUN_SCHEDULER:-true}" = "true" ]; then
+    php artisan schedule:work &
+fi
+
 a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
 a2enmod mpm_prefork >/dev/null 2>&1 || true
 

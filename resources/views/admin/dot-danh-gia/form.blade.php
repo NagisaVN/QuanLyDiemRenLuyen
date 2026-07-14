@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $datetime = fn ($value) => $value ? $value->format('Y-m-d\TH:i') : '';
+    $datetime = fn ($value) => $value ? $value->copy()->timezone(config('app.display_timezone'))->format('Y-m-d\TH:i') : '';
 @endphp
 
 <form method="POST" action="{{ $dot->exists ? route('admin.dot-danh-gia.update', $dot) : route('admin.dot-danh-gia.store') }}" class="table-card p-3">
@@ -16,27 +16,16 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2 class="h4 mb-1">{{ $dot->exists ? 'Sửa đợt đánh giá' : 'Tạo đợt đánh giá' }}</h2>
-            <div class="text-secondary">Khi ở trạng thái "Đã kích hoạt", hệ thống sẽ tự động mở/đóng cho Sinh viên và GVCN theo đúng lịch hẹn bên dưới.</div>
+            <div class="text-secondary">Hệ thống tự động mở, đóng và công bố theo lịch bên dưới. Thời gian nhập theo giờ Việt Nam.</div>
         </div>
         <a class="btn btn-outline-secondary" href="{{ route('admin.dot-danh-gia.index') }}">Quay lại</a>
     </div>
 
     <div class="row g-3">
-        <div class="col-md-8">
+        <div class="col-md-12">
             <label class="form-label">Tên đợt <span class="text-danger">*</span></label>
             <input class="form-control @error('ten_dot') is-invalid @enderror" name="ten_dot" value="{{ old('ten_dot', $dot->ten_dot) }}" required>
             @error('ten_dot')<div class="invalid-feedback">{{ $message }}</div>@enderror
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Trạng thái <span class="text-danger">*</span></label>
-            <select class="form-select @error('trang_thai') is-invalid @enderror" name="trang_thai" required>
-                @foreach (['draft', 'open', 'closed'] as $status)
-                    <option value="{{ $status }}" @selected(old('trang_thai', $dot->trang_thai ?? 'draft') === $status)>
-                        {{ config('ui.statuses.' . $status, $status) }}
-                    </option>
-                @endforeach
-            </select>
-            @error('trang_thai')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 
         <div class="col-md-6">
@@ -84,7 +73,7 @@
         </div>
         <div class="col-md-6">
             <label class="form-label">Ngày công bố</label>
-            <input class="form-control @error('ngay_cong_bo') is-invalid @enderror" type="datetime-local" name="ngay_cong_bo" value="{{ old('ngay_cong_bo', $datetime($dot->ngay_cong_bo)) }}">
+            <input class="form-control @error('ngay_cong_bo') is-invalid @enderror" type="datetime-local" name="ngay_cong_bo" value="{{ old('ngay_cong_bo', $datetime($dot->ngay_cong_bo)) }}" required>
             @error('ngay_cong_bo')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <div class="col-12">

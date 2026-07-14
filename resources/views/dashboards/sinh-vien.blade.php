@@ -17,7 +17,7 @@
                 </div>
                 <div class="col-md-3">
                     <div class="text-secondary small">Hạn nộp</div>
-                    <div class="fw-semibold">{{ $phieu->dotDanhGia?->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i') ?? 'Chưa đặt' }}</div>
+                    <div class="fw-semibold">{{ $phieu->dotDanhGia?->displayDate($phieu->dotDanhGia->ngay_ket_thuc_sinh_vien) ?? 'Chưa đặt' }}</div>
                 </div>
                 <div class="col-md-2">
                     <div class="text-secondary small">Điểm tự chấm</div>

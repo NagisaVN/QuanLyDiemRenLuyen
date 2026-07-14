@@ -55,7 +55,7 @@ class EvaluationPeriodCurrentTest extends TestCase
 
         $open->update(['trang_thai' => DotDanhGia::STATUS_CLOSED]);
 
-        $this->assertNull($periods->getCurrentStudentPeriod());
+        $this->assertTrue($open->is($periods->getCurrentStudentPeriod()));
         $this->assertTrue($open->refresh()->is($periods->getCurrentTeacherPeriod()));
     }
 
@@ -174,6 +174,10 @@ class EvaluationPeriodCurrentTest extends TestCase
 
         $draft = $this->createDot($data['hk2'], $data['admin'], DotDanhGia::STATUS_DRAFT, [
             'ten_dot' => 'HK2 nháp',
+            'ngay_bat_dau_sinh_vien' => now()->addDay(),
+            'ngay_ket_thuc_sinh_vien' => now()->addDays(2),
+            'ngay_bat_dau_gvcn' => now()->addDays(2),
+            'ngay_ket_thuc_gvcn' => now()->addDays(3),
         ]);
 
         $this->actingAs($data['admin'])

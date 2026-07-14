@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gvcn;
 
 use App\Http\Controllers\Controller;
+use App\Models\DotDanhGia;
 use App\Models\MinhChung;
 use App\Models\PhieuDanhGia;
 use App\Services\DiemRenLuyenService;
@@ -13,9 +14,10 @@ class EvaluationController extends Controller
 {
     public function index(Request $request)
     {
+        app(DotDanhGiaService::class)->syncAll();
         $classIds = $request->user()->lopPhuTrachs()->pluck('id');
-        $currentDot = app(DotDanhGiaService::class)->getCurrentTeacherPeriod() 
-            ?? \App\Models\DotDanhGia::whereIn('trang_thai', ['open', 'closed', 'published'])->latest('id')->first();
+        $currentDot = app(DotDanhGiaService::class)->getCurrentTeacherPeriod()
+            ?? DotDanhGia::whereIn('trang_thai', ['open', 'closed', 'published'])->latest('id')->first();
 
         $forms = PhieuDanhGia::with(['sinhVien.lop', 'hocKy', 'dotDanhGia'])
             ->whereHas('sinhVien', fn ($query) => $query->whereIn('lop_id', $classIds))
@@ -34,6 +36,7 @@ class EvaluationController extends Controller
 
     public function show(Request $request, PhieuDanhGia $phieu, DotDanhGiaService $dotService)
     {
+        $dotService->syncPeriod($phieu->loadMissing('dotDanhGia')->dotDanhGia);
         $this->authorizeClass($request, $phieu);
         $phieu->load(['sinhVien.lop', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 'minhChungs.mucTieuChi']);
 

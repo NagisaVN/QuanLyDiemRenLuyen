@@ -102,6 +102,26 @@ class DiemRenLuyenService
         return app(DotDanhGiaService::class)->canStudentEdit($phieu->loadMissing('dotDanhGia'));
     }
 
+    public function studentEditBlockReason(PhieuDanhGia $phieu): ?string
+    {
+        if ($this->canStudentEdit($phieu)) {
+            return null;
+        }
+
+        return match ($phieu->trang_thai) {
+            PhieuDanhGia::STATUS_SUBMITTED => 'submitted',
+            PhieuDanhGia::STATUS_REVIEWED => 'reviewed',
+            PhieuDanhGia::STATUS_APPROVED => 'approved',
+            PhieuDanhGia::STATUS_LOCKED => 'locked',
+            default => match (true) {
+                ! $phieu->dotDanhGia => 'unavailable',
+                now()->lessThan($phieu->dotDanhGia->ngay_bat_dau_sinh_vien) => 'not_started',
+                now()->greaterThanOrEqualTo($phieu->dotDanhGia->ngay_ket_thuc_sinh_vien) => 'expired',
+                default => 'unavailable',
+            },
+        };
+    }
+
     public function rubricForPhieu(PhieuDanhGia $phieu): Collection
     {
         $this->ensureRubricDetails($phieu);

@@ -7,6 +7,7 @@ use App\Models\MinhChung;
 use App\Models\MucTieuChi;
 use App\Models\PhieuDanhGia;
 use App\Services\DiemRenLuyenService;
+use App\Services\DotDanhGiaService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -16,21 +17,26 @@ class EvaluationController extends Controller
 {
     public function index(Request $request, DiemRenLuyenService $service)
     {
+        app(DotDanhGiaService::class)->syncAll();
+
         try {
             $phieu = $service->ensurePhieu($request->user()->sinhVien);
         } catch (ValidationException $exception) {
+            $nextPeriod = app(DotDanhGiaService::class)->getNextStudentPeriod();
             $phieu = PhieuDanhGia::with([
-                'hocKy.namHoc', 'dotDanhGia', 'sinhVien.lop.khoa', 
-                'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 
-                'minhChungs.tieuChi', 'minhChungs.mucTieuChi'
+                'hocKy.namHoc', 'dotDanhGia', 'sinhVien.lop.khoa',
+                'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi',
+                'minhChungs.tieuChi', 'minhChungs.mucTieuChi',
             ])
-            ->where('sinh_vien_id', $request->user()->sinhVien->id)
-            ->latest('id')
-            ->first();
+                ->where('sinh_vien_id', $request->user()->sinhVien->id)
+                ->latest('id')
+                ->first();
 
-            if (!$phieu) {
+            if (! $phieu || ($nextPeriod && $phieu->dot_danh_gia_id !== $nextPeriod->id)) {
                 return view('student.evaluations.closed', [
-                    'message' => collect($exception->errors())->flatten()->first() ?: 'Đã hết thời hạn đánh giá.',
+                    'message' => $nextPeriod
+                        ? 'Đợt đánh giá sẽ mở lúc '.$nextPeriod->displayDate($nextPeriod->ngay_bat_dau_sinh_vien).' (giờ Việt Nam).'
+                        : (collect($exception->errors())->flatten()->first() ?: 'Đã hết thời hạn đánh giá.'),
                 ]);
             }
         }
@@ -38,6 +44,7 @@ class EvaluationController extends Controller
         return view('student.evaluations.form', [
             'phieu' => $phieu,
             'canEdit' => $service->canStudentEdit($phieu),
+            'editBlockReason' => $service->studentEditBlockReason($phieu),
             'rubric' => $service->rubricForPhieu($phieu),
         ]);
     }
@@ -57,6 +64,7 @@ class EvaluationController extends Controller
 
         if (($data['action'] ?? null) === 'submit') {
             $service->submit($phieu);
+
             return back()->with('status', 'Đã gửi phiếu, chờ GVCN xác nhận.');
         }
 

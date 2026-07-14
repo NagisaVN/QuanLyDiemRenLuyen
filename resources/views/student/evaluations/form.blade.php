@@ -5,9 +5,17 @@
 @section('content')
 @php
     $dot = $phieu->dotDanhGia;
-    $deadlinePassed = $dot?->ngay_ket_thuc_sinh_vien && now()->greaterThan($dot->ngay_ket_thuc_sinh_vien);
-    $deadlineText = $dot?->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i');
-    $submittedWaiting = $phieu->trang_thai === \App\Models\PhieuDanhGia::STATUS_SUBMITTED;
+    $startText = $dot?->displayDate($dot->ngay_bat_dau_sinh_vien);
+    $deadlineText = $dot?->displayDate($dot->ngay_ket_thuc_sinh_vien);
+    $blockMessages = [
+        'not_started' => "Đợt đánh giá chưa mở. Thời gian bắt đầu: {$startText} (giờ Việt Nam).",
+        'expired' => 'Đã hết thời hạn nộp phiếu đánh giá.',
+        'submitted' => 'Đã gửi phiếu, chờ GVCN xác nhận.',
+        'reviewed' => 'Phiếu đã được GVCN xác nhận và đang chờ Hội đồng duyệt.',
+        'approved' => 'Phiếu đã được Hội đồng duyệt.',
+        'locked' => 'Phiếu đã bị khóa.',
+        'unavailable' => 'Phiếu hiện không nằm trong thời gian chỉnh sửa.',
+    ];
 @endphp
 
 @push('styles')
@@ -37,7 +45,7 @@
                     </div>
                     @if ($dot)
                         <div class="text-secondary small mt-1">
-                            Đợt: {{ $dot->ten_dot }} · Hạn nộp: {{ $deadlineText }}
+                            Đợt: {{ $dot->ten_dot }} · Mở: {{ $startText }} · Hạn nộp: {{ $deadlineText }} (giờ Việt Nam)
                         </div>
                     @endif
                 </div>
@@ -48,11 +56,7 @@
 
             @if (! $canEdit)
                 <div class="alert alert-warning">
-                    @if ($submittedWaiting)
-                        Đã gửi phiếu, chờ GVCN xác nhận.
-                    @else
-                        {{ $deadlinePassed ? 'Đã hết thời hạn nộp phiếu đánh giá.' : 'Phiếu đã được duyệt, đã khóa hoặc không còn trong thời gian chỉnh sửa.' }}
-                    @endif
+                    {{ $blockMessages[$editBlockReason] ?? $blockMessages['unavailable'] }}
                 </div>
             @endif
 

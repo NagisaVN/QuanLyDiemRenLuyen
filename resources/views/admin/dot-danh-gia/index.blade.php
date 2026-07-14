@@ -15,7 +15,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h2 class="h4 mb-1">Quản lý thời hạn đánh giá</h2>
-        <div class="text-secondary">Admin và Công Tác Sinh Viên tạo/mở/đóng/công bố các đợt đánh giá.</div>
+        <div class="text-secondary">Admin và Công Tác Sinh Viên cấu hình lịch; hệ thống tự động mở, đóng và công bố.</div>
     </div>
     @can('manage_dot_danh_gia')
         <a class="btn btn-primary" href="{{ route('admin.dot-danh-gia.create') }}">
@@ -41,6 +41,7 @@
             </thead>
             <tbody>
                 @forelse ($dots as $dot)
+                    @php($effectiveStatus = $dot->effectiveStatus())
                     <tr>
                         <td>
                             <div class="fw-semibold">{{ $dot->ten_dot }}</div>
@@ -49,60 +50,31 @@
                         <td>{{ $dot->namHoc?->ten_nam_hoc }}</td>
                         <td>{{ $dot->hocKy?->ten_hoc_ky }}</td>
                         <td>
-                            <div>{{ $dot->ngay_bat_dau_sinh_vien?->format('d/m/Y H:i') }}</div>
-                            <div class="small text-secondary">{{ $dot->ngay_ket_thuc_sinh_vien?->format('d/m/Y H:i') }}</div>
+                            <div>{{ $dot->displayDate($dot->ngay_bat_dau_sinh_vien) }}</div>
+                            <div class="small text-secondary">{{ $dot->displayDate($dot->ngay_ket_thuc_sinh_vien) }}</div>
                         </td>
                         <td>
-                            <div>{{ $dot->ngay_bat_dau_gvcn?->format('d/m/Y H:i') }}</div>
-                            <div class="small text-secondary">{{ $dot->ngay_ket_thuc_gvcn?->format('d/m/Y H:i') }}</div>
+                            <div>{{ $dot->displayDate($dot->ngay_bat_dau_gvcn) }}</div>
+                            <div class="small text-secondary">{{ $dot->displayDate($dot->ngay_ket_thuc_gvcn) }}</div>
                         </td>
-                        <td>{{ $dot->ngay_cong_bo?->format('d/m/Y H:i') ?? 'Chưa đặt' }}</td>
+                        <td>{{ $dot->displayDate($dot->ngay_cong_bo) ?? 'Chưa đặt' }}</td>
                         <td>
-                            <span class="badge {{ $badgeMap[$dot->trang_thai] ?? 'text-bg-secondary' }}">
-                                {{ config('ui.statuses.' . $dot->trang_thai, $dot->trang_thai) }}
+                            <span class="badge {{ $badgeMap[$effectiveStatus] ?? 'text-bg-secondary' }}">
+                                {{ config('ui.statuses.' . $effectiveStatus, $effectiveStatus) }}
                             </span>
                         </td>
                         <td class="text-end">
                             <div class="d-inline-flex gap-1 flex-wrap justify-content-end">
-                                @if ($dot->trang_thai === 'published')
+                                @if ($effectiveStatus === 'published')
                                     @can('manage_dot_danh_gia')
                                         <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.results', $dot) }}">Xem kết quả</a>
                                     @endcan
                                     @can('export reports')
                                         <a class="btn btn-sm btn-outline-success" href="{{ route('admin.dot-danh-gia.export', $dot) }}">Xuất Excel</a>
                                     @endcan
-                                @elseif ($dot->trang_thai === 'open')
+                                @elseif ($effectiveStatus === 'draft')
                                     @can('manage_dot_danh_gia')
                                         <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.edit', $dot) }}">Sửa</a>
-                                    @endcan
-                                    @can('close_dot_danh_gia')
-                                        <form method="POST" action="{{ route('admin.dot-danh-gia.close', $dot) }}">
-                                            @csrf
-                                            <button class="btn btn-sm btn-outline-dark" type="submit">Đóng</button>
-                                        </form>
-                                    @endcan
-                                @elseif ($dot->trang_thai === 'closed')
-                                    @can('open_dot_danh_gia')
-                                        <form method="POST" action="{{ route('admin.dot-danh-gia.open', $dot) }}">
-                                            @csrf
-                                            <button class="btn btn-sm btn-success" type="submit">Mở lại</button>
-                                        </form>
-                                    @endcan
-                                    @can('publish_dot_danh_gia')
-                                        <form method="POST" action="{{ route('admin.dot-danh-gia.publish', $dot) }}">
-                                            @csrf
-                                            <button class="btn btn-sm btn-primary" type="submit">Công bố</button>
-                                        </form>
-                                    @endcan
-                                @elseif ($dot->trang_thai === 'draft')
-                                    @can('manage_dot_danh_gia')
-                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.edit', $dot) }}">Sửa</a>
-                                    @endcan
-                                    @can('open_dot_danh_gia')
-                                        <form method="POST" action="{{ route('admin.dot-danh-gia.open', $dot) }}">
-                                            @csrf
-                                            <button class="btn btn-sm btn-success" type="submit">Mở</button>
-                                        </form>
                                     @endcan
                                     @can('manage_dot_danh_gia')
                                         <form method="POST" action="{{ route('admin.dot-danh-gia.destroy', $dot) }}" onsubmit="return confirm('Xóa đợt đánh giá này?')">
