@@ -12,6 +12,13 @@
                 <div>GPS: {{ $hoatDong->location_lat ?? 'TODO latitude' }}, {{ $hoatDong->location_lng ?? 'TODO longitude' }} · Bán kính {{ $hoatDong->location_radius_meters ?? 100 }}m</div>
             </div>
 
+            @if (! request()->isSecure())
+                <div class="alert alert-danger">
+                    Website đang dùng HTTP. iPhone/iPad sẽ không cấp quyền vị trí cho mã QR này.
+                    Hãy cấu hình HTTPS trước khi mở phiên điểm danh.
+                </div>
+            @endif
+
             @if ($hoatDong->location_lat === null || $hoatDong->location_lng === null)
                 <div class="alert alert-warning">Chưa có tọa độ chính xác. Hãy nhập latitude/longitude từ Google Maps trước khi cho sinh viên quét QR.</div>
             @endif

@@ -14,6 +14,13 @@
                 Bấm nút bên dưới và cho phép trình duyệt truy cập vị trí.
             </div>
 
+            <div id="ios-location-help" class="alert alert-light border text-start d-none">
+                <strong>Dành cho iPhone/iPad:</strong>
+                hãy mở liên kết bằng Safari, vào
+                <em>Cài đặt → Quyền riêng tư &amp; Bảo mật → Dịch vụ định vị → Safari Websites</em>,
+                chọn <em>Khi dùng ứng dụng</em> và bật <em>Vị trí chính xác</em>.
+            </div>
+
             <button id="scan-attendance" class="btn btn-primary btn-lg">
                 <i class="bi bi-geo-alt me-1"></i> Lấy vị trí và điểm danh
             </button>
@@ -26,7 +33,13 @@
 <script>
 const button = document.getElementById('scan-attendance');
 const alertBox = document.getElementById('attendance-alert');
+const iosLocationHelp = document.getElementById('ios-location-help');
 const csrf = document.querySelector('meta[name="csrf-token"]').content;
+const requiredAccuracy = 100;
+
+if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    iosLocationHelp.classList.remove('d-none');
+}
 
 function showResult(type, message) {
     alertBox.className = `alert alert-${type} text-start`;
@@ -60,7 +73,85 @@ async function submitAttendance(position) {
     showResult('success', data.message);
 }
 
-button.addEventListener('click', () => {
+function locationErrorMessage(error) {
+    if (error?.code === 1) {
+        return 'iPhone chưa cấp quyền vị trí. Hãy mở bằng Safari, cho phép truy cập vị trí và bật Vị trí chính xác trong Cài đặt.';
+    }
+
+    if (error?.code === 2) {
+        return 'iPhone chưa xác định được vị trí. Hãy bật Dịch vụ định vị, Wi-Fi hoặc dữ liệu di động rồi thử lại ở nơi thoáng hơn.';
+    }
+
+    if (error?.code === 3) {
+        return 'Quá thời gian lấy GPS. Hãy giữ Safari mở, di chuyển đến nơi thoáng và bấm thử lại.';
+    }
+
+    return error?.message || 'Không thể lấy vị trí GPS.';
+}
+
+function getAccuratePosition() {
+    return new Promise((resolve, reject) => {
+        let watchId = null;
+        let bestPosition = null;
+        let settled = false;
+
+        const finish = (callback, value) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            clearTimeout(overallTimeout);
+
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+
+            callback(value);
+        };
+
+        const overallTimeout = setTimeout(() => {
+            if (bestPosition) {
+                finish(resolve, bestPosition);
+                return;
+            }
+
+            finish(reject, { code: 3 });
+        }, 35000);
+
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                if (! bestPosition || position.coords.accuracy < bestPosition.coords.accuracy) {
+                    bestPosition = position;
+                }
+
+                const accuracy = Math.round(position.coords.accuracy);
+                showResult('info', `Đã nhận vị trí (sai số khoảng ${accuracy} m), đang xác nhận...`);
+
+                if (position.coords.accuracy <= requiredAccuracy) {
+                    finish(resolve, position);
+                }
+            },
+            (error) => {
+                if (error.code === 1) {
+                    finish(reject, error);
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 30000,
+                maximumAge: 0,
+            }
+        );
+    });
+}
+
+button.addEventListener('click', async () => {
+    if (! window.isSecureContext) {
+        showResult('danger', 'iPhone chỉ cho phép lấy vị trí trên kết nối HTTPS. Hãy mở mã QR bằng đường dẫn https:// trong Safari.');
+        return;
+    }
+
     if (! navigator.geolocation) {
         showResult('danger', 'Trình duyệt không hỗ trợ lấy vị trí GPS.');
         return;
@@ -69,26 +160,14 @@ button.addEventListener('click', () => {
     button.disabled = true;
     showResult('info', 'Đang lấy vị trí GPS...');
 
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            try {
-                await submitAttendance(position);
-            } catch (error) {
-                showResult('danger', error.message);
-            } finally {
-                button.disabled = false;
-            }
-        },
-        () => {
-            showResult('danger', 'Bạn cần cho phép truy cập vị trí để điểm danh.');
-            button.disabled = false;
-        },
-        {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-        }
-    );
+    try {
+        const position = await getAccuratePosition();
+        await submitAttendance(position);
+    } catch (error) {
+        showResult('danger', locationErrorMessage(error));
+    } finally {
+        button.disabled = false;
+    }
 });
 </script>
 @endpush
