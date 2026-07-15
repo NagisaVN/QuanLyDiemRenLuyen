@@ -46,13 +46,27 @@ class DashboardController extends Controller
         $sinhVien = $request->user()->sinhVien;
         $phieu = null;
         $evaluationMessage = null;
+        $evaluationDeadlineAlert = null;
 
         if ($sinhVien) {
             $currentPeriod = app(DotDanhGiaService::class)->getCurrentStudentPeriod();
             $phieu = $currentPeriod
-                ? PhieuDanhGia::query()->where('sinh_vien_id', $sinhVien->id)->where('dot_danh_gia_id', $currentPeriod->id)->first()
+                ? PhieuDanhGia::query()
+                    ->with('dotDanhGia')
+                    ->where('sinh_vien_id', $sinhVien->id)
+                    ->where('dot_danh_gia_id', $currentPeriod->id)
+                    ->first()
                 : null;
             $evaluationMessage = $currentPeriod ? null : 'Hiện chưa có đợt đánh giá đang mở.';
+
+            if ($currentPeriod
+                && $currentPeriod->ngay_ket_thuc_sinh_vien->lessThanOrEqualTo(now()->addDays(7))
+                && (! $phieu || $phieu->trang_thai === PhieuDanhGia::STATUS_DRAFT)) {
+                $evaluationDeadlineAlert = [
+                    'period_name' => $currentPeriod->ten_dot,
+                    'deadline' => $currentPeriod->displayDate($currentPeriod->ngay_ket_thuc_sinh_vien),
+                ];
+            }
         }
 
         return view('dashboards.sinh-vien', [
@@ -60,6 +74,7 @@ class DashboardController extends Controller
             'sinhVien' => $sinhVien,
             'phieu' => $phieu,
             'evaluationMessage' => $evaluationMessage,
+            'evaluationDeadlineAlert' => $evaluationDeadlineAlert,
         ]);
     }
 

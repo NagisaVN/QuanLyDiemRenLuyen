@@ -4,6 +4,23 @@
 
 @section('content')
     @include('dashboards.partials-stats')
+
+    @if ($evaluationDeadlineAlert)
+        <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" role="alert" data-testid="evaluation-deadline-alert">
+            <div>
+                <div class="fw-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Đợt đánh giá sắp đóng</div>
+                <div>
+                    “{{ $evaluationDeadlineAlert['period_name'] }}” sẽ đóng vào
+                    <strong>{{ $evaluationDeadlineAlert['deadline'] }}</strong>.
+                    Bạn chưa hoàn thành đánh giá, vui lòng gửi phiếu trước thời hạn.
+                </div>
+            </div>
+            <a class="btn btn-warning flex-shrink-0" href="{{ route('sinh-vien.evaluations.index') }}">
+                <i class="fas fa-clipboard-check mr-1"></i>Mở phiếu đánh giá
+            </a>
+        </div>
+    @endif
+
     <div class="card table-card">
         <div class="card-header">
             <h3 class="card-title mb-0"><i class="fas fa-clipboard-list mr-2"></i>Phiếu hiện tại</h3>
