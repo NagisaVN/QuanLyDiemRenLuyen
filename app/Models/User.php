@@ -48,6 +48,11 @@ class User extends Authenticatable
         return $this->hasMany(DotDanhGia::class, 'updated_by');
     }
 
+    public function studentNotifications()
+    {
+        return $this->hasMany(StudentNotification::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

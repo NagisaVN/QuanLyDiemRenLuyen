@@ -18,6 +18,7 @@ class ThongBao extends Model
         return [
             'published_at' => 'datetime',
             'het_han_at' => 'datetime',
+            'distributed_at' => 'datetime',
             'is_active' => 'boolean',
         ];
     }

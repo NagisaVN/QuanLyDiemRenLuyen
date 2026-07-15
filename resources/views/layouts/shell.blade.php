@@ -249,6 +249,42 @@
         </ul>
 
         <ul class="navbar-nav ml-auto">
+            @can('view student notifications')
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#" aria-label="Thông báo" aria-expanded="false">
+                        <i class="far fa-bell"></i>
+                        <span id="student-notification-count" class="badge badge-danger navbar-badge {{ $unreadCount ? '' : 'd-none' }}">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" style="min-width:340px;max-width:380px">
+                        <span class="dropdown-item dropdown-header"><strong>Thông báo</strong> · {{ $unreadCount }} chưa đọc</span>
+                        <div class="dropdown-divider"></div>
+                        @forelse ($notifications as $notification)
+                            <form method="POST" action="{{ route('sinh-vien.notifications.read', $notification) }}">
+                                @csrf
+                                @method('PATCH')
+                                <button class="dropdown-item text-left py-2 {{ $notification->is_read ? '' : 'bg-light' }}" type="submit" style="white-space:normal">
+                                    <div class="d-flex align-items-start">
+                                        <i class="{{ $notification->isEvaluation() ? 'fas fa-clipboard-check text-primary' : 'fas fa-bullhorn text-success' }} mr-2 mt-1"></i>
+                                        <span class="flex-grow-1">
+                                            <span class="d-block font-weight-bold">{{ $notification->title }}</span>
+                                            <span class="d-block small text-muted">{{ \Illuminate\Support\Str::limit($notification->content, 90) }}</span>
+                                            <span class="d-block small text-muted mt-1">{{ $notification->created_at->diffForHumans() }}</span>
+                                        </span>
+                                        @if (! $notification->is_read)
+                                            <span class="badge badge-danger ml-1">Mới</span>
+                                        @endif
+                                    </div>
+                                </button>
+                            </form>
+                            <div class="dropdown-divider"></div>
+                        @empty
+                            <div class="dropdown-item text-center text-muted py-3">Chưa có thông báo</div>
+                            <div class="dropdown-divider"></div>
+                        @endforelse
+                        <a href="{{ route('sinh-vien.notifications.index') }}" class="dropdown-item dropdown-footer">Xem tất cả thông báo</a>
+                    </div>
+                </li>
+            @endcan
             <li class="nav-item dropdown">
                 <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false">
                     <i class="far fa-user-circle mr-1"></i>

@@ -10,6 +10,7 @@ use App\Http\Controllers\HoiDong\EvaluationController as HoiDongEvaluationContro
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\ActivityController as StudentActivityController;
 use App\Http\Controllers\Student\EvaluationController as StudentEvaluationController;
+use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [DashboardController::class, 'home']);
@@ -57,7 +58,11 @@ Route::middleware(['auth', 'permission:manage_dot_danh_gia'])
             ->middleware('permission:publish_dot_danh_gia')->name('dot-danh-gia.publish');
     });
 
-Route::middleware(['auth', 'permission:manage users|manage roles|manage master data|view audit logs|manage backups'])->prefix('admin')->name('admin.')->group(function () {
+Route::any('/admin/hoat-dongs/{path?}', fn () => redirect()->route('doan-hoi.activities.index'))
+    ->where('path', '.*')
+    ->middleware(['auth', 'permission:manage activities']);
+
+Route::middleware(['auth', 'permission:manage users|manage roles|manage master data|view audit logs|manage backups|manage notifications'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
     Route::post('/users/{id}/restore', [CrudController::class, 'restoreUser'])->name('users.restore');
     Route::get('/{module}', [CrudController::class, 'index'])->name('crud.index');
@@ -78,9 +83,16 @@ Route::middleware(['auth', 'permission:self evaluate'])->prefix('sinh-vien')->na
     Route::get('/phieu-danh-gia/lich-su', [StudentEvaluationController::class, 'history'])->name('evaluations.history');
     Route::get('/phieu-danh-gia/in', [StudentEvaluationController::class, 'print'])->name('evaluations.print');
     Route::get('/hoat-dong', [StudentActivityController::class, 'index'])->name('activities.index');
+    Route::get('/hoat-dong/{hoatDong}', [StudentActivityController::class, 'show'])->name('activities.show');
     Route::post('/hoat-dong/{hoatDong}/dang-ky', [StudentActivityController::class, 'register'])->name('activities.register');
     Route::post('/hoat-dong/{hoatDong}/check-in', [StudentActivityController::class, 'checkIn'])->middleware('throttle:10,1')->name('activities.check-in');
     Route::get('/diem-danh/scan', [StudentActivityController::class, 'scan'])->name('attendance.scan');
+});
+
+Route::middleware(['auth', 'permission:view student notifications'])->prefix('sinh-vien')->name('sinh-vien.')->group(function () {
+    Route::get('/thong-bao', [StudentNotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('/thong-bao/read-all', [StudentNotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::patch('/thong-bao/{notification}/read', [StudentNotificationController::class, 'read'])->name('notifications.read');
 });
 
 Route::middleware(['auth', 'permission:manage activities'])->prefix('api/attendance')->name('api.attendance.')->group(function () {
@@ -107,9 +119,9 @@ Route::middleware(['auth', 'permission:review class forms'])->prefix('gvcn')->na
 
 Route::middleware(['auth', 'permission:manage activities'])->prefix('doan-hoi')->name('doan-hoi.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'doanHoi'])->name('dashboard');
-    Route::resource('activities', DoanHoiActivityController::class)->except(['show'])->parameters(['activities' => 'hoatDong']);
+    Route::resource('activities', DoanHoiActivityController::class)->except(['show', 'destroy'])->parameters(['activities' => 'hoatDong']);
     Route::get('/activities/{hoatDong}/registrations', [DoanHoiActivityController::class, 'registrations'])->name('activities.registrations');
-    Route::post('/registrations/{registration}/approve', [DoanHoiActivityController::class, 'approve'])->name('registrations.approve');
+    Route::post('/activities/{hoatDong}/cancel', [DoanHoiActivityController::class, 'cancel'])->name('activities.cancel');
     Route::post('/activities/{hoatDong}/attendance', [DoanHoiActivityController::class, 'attendance'])->name('activities.attendance');
     Route::get('/activities/{hoatDong}/qr', [DoanHoiActivityController::class, 'qr'])->name('activities.qr');
     Route::post('/activities/{hoatDong}/manual-adjust', [DoanHoiActivityController::class, 'manualAdjust'])->name('activities.manual-adjust');

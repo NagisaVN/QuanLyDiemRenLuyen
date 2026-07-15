@@ -14,7 +14,7 @@ class DangKyHoatDong extends Model
 
     protected function casts(): array
     {
-        return ['approved_at' => 'datetime'];
+        return ['approved_at' => 'datetime', 'registered_at' => 'datetime'];
     }
 
     public function hoatDong()

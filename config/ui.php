@@ -136,6 +136,9 @@ return [
         'rejected' => 'Từ chối',
         'attended' => 'Đã điểm danh',
         'open' => 'Đã kích hoạt (Tự động theo lịch)',
+        'scheduled' => 'Đã lên lịch',
+        'registration_closed' => 'Đã đóng đăng ký',
+        'completed' => 'Đã kết thúc',
         'closed' => 'Đã đóng (Thủ công)',
         'published' => 'Đã công bố',
         'cancelled' => 'Đã hủy',
@@ -182,6 +185,8 @@ return [
         'open_dot_danh_gia' => 'Mở đợt đánh giá',
         'close_dot_danh_gia' => 'Đóng đợt đánh giá',
         'publish_dot_danh_gia' => 'Công bố đợt đánh giá',
+        'view student notifications' => 'Xem thông báo sinh viên',
+        'manage notifications' => 'Quản lý thông báo',
     ],
 
     'messages' => [

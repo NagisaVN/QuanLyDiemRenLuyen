@@ -32,7 +32,7 @@ class SecurityAuthorizationTest extends TestCase
         ]);
 
         $this->actingAs($intruder)->get(route('doan-hoi.activities.edit', $activity))->assertForbidden();
-        $this->actingAs($intruder)->delete(route('doan-hoi.activities.destroy', $activity))->assertForbidden();
+        $this->actingAs($intruder)->post(route('doan-hoi.activities.cancel', $activity))->assertForbidden();
         $this->assertNotNull($activity->fresh());
     }
 

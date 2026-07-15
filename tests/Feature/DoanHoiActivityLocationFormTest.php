@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\HoatDong;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -147,6 +148,49 @@ class DoanHoiActivityLocationFormTest extends TestCase
         $this->assertStringContainsString('"center":{"lat":10.7749241,"lng":106.6345254}', $html);
     }
 
+    public function test_open_activity_can_update_future_schedule_without_regressing_status(): void
+    {
+        $staff = $this->makeStaff();
+        $activity = HoatDong::create([
+            'user_id' => $staff->id,
+            'ma_hoat_dong' => 'HD-OPEN-EDIT',
+            'ten_hoat_dong' => 'Hoạt động đang mở',
+            'loai_hoat_dong' => 'Kỹ năng mềm',
+            'dia_diem' => '12 Trịnh Đình Thảo, Tân Phú',
+            'location_lat' => 10.7749241,
+            'location_lng' => 106.6345254,
+            'location_radius_meters' => 100,
+            'open_registration_at' => now()->subHour(),
+            'close_registration_at' => now()->addDay(),
+            'thoi_gian_bat_dau' => now()->addDays(2),
+            'thoi_gian_ket_thuc' => now()->addDays(2)->addHours(2),
+            'diem_cong' => 5,
+            'trang_thai' => HoatDong::STATUS_OPEN,
+        ]);
+        $displayNow = Carbon::now(config('app.display_timezone'))->startOfMinute();
+
+        $this->actingAs($staff)
+            ->put(route('doan-hoi.activities.update', $activity), $this->validActivityPayload([
+                'ma_hoat_dong' => $activity->ma_hoat_dong,
+                'open_registration_at' => $displayNow->copy()->subHour()->format('Y-m-d\TH:i'),
+                'close_registration_at' => $displayNow->copy()->addDays(2)->format('Y-m-d\TH:i'),
+                'thoi_gian_bat_dau' => $displayNow->copy()->addDays(3)->format('Y-m-d\TH:i'),
+                'thoi_gian_ket_thuc' => $displayNow->copy()->addDays(3)->addHours(3)->format('Y-m-d\TH:i'),
+            ]))
+            ->assertRedirect(route('doan-hoi.activities.index'));
+
+        $activity->refresh();
+        $this->assertSame(HoatDong::STATUS_OPEN, $activity->trang_thai);
+        $this->assertSame(
+            $displayNow->copy()->addDays(3)->utc()->format('Y-m-d H:i:s'),
+            $activity->thoi_gian_bat_dau->utc()->format('Y-m-d H:i:s'),
+        );
+        $this->assertSame(
+            $displayNow->copy()->addDays(2)->utc()->format('Y-m-d H:i:s'),
+            $activity->close_registration_at->utc()->format('Y-m-d H:i:s'),
+        );
+    }
+
     private function makeStaff(): User
     {
         $role = Role::firstOrCreate(['name' => 'can_bo_doan_hoi', 'guard_name' => 'web']);
@@ -167,7 +211,10 @@ class DoanHoiActivityLocationFormTest extends TestCase
             'location_lng' => '106.6345254',
             'location_radius_meters' => '100',
             'diem_cong' => '5',
-            'trang_thai' => 'open',
+            'open_registration_at' => Carbon::now(config('app.display_timezone'))->addDay()->format('Y-m-d\TH:i'),
+            'close_registration_at' => Carbon::now(config('app.display_timezone'))->addDays(2)->format('Y-m-d\TH:i'),
+            'thoi_gian_bat_dau' => Carbon::now(config('app.display_timezone'))->addDays(3)->format('Y-m-d\TH:i'),
+            'thoi_gian_ket_thuc' => Carbon::now(config('app.display_timezone'))->addDays(3)->addHours(2)->format('Y-m-d\TH:i'),
             'auto_cong_diem' => '1',
         ], $overrides);
     }

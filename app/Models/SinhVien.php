@@ -41,7 +41,7 @@ class SinhVien extends Model
     public function hoatDongs()
     {
         return $this->belongsToMany(HoatDong::class, 'dang_ky_hoat_dongs')
-            ->withPivot(['trang_thai', 'approved_by', 'approved_at', 'ghi_chu'])
+            ->withPivot(['trang_thai', 'registered_at', 'approved_by', 'approved_at', 'ghi_chu'])
             ->withTimestamps();
     }
 }

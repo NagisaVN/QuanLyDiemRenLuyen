@@ -3,13 +3,17 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
-window.Echo = new Echo({
-    broadcaster: 'pusher',
-    key: import.meta.env.VITE_PUSHER_APP_KEY,
-    cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
-    forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
-    wsHost: import.meta.env.VITE_PUSHER_HOST || undefined,
-    wsPort: import.meta.env.VITE_PUSHER_PORT || 80,
-    wssPort: import.meta.env.VITE_PUSHER_PORT || 443,
-    enabledTransports: ['ws', 'wss'],
-});
+const pusherKey = import.meta.env.VITE_PUSHER_APP_KEY;
+
+window.Echo = pusherKey
+    ? new Echo({
+        broadcaster: 'pusher',
+        key: pusherKey,
+        cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
+        forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
+        wsHost: import.meta.env.VITE_PUSHER_HOST || undefined,
+        wsPort: import.meta.env.VITE_PUSHER_PORT || 80,
+        wssPort: import.meta.env.VITE_PUSHER_PORT || 443,
+        enabledTransports: ['ws', 'wss'],
+    })
+    : null;

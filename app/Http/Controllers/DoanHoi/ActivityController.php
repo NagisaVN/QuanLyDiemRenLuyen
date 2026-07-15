@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\DoanHoi;
 
 use App\Http\Controllers\Controller;
-use App\Models\DangKyHoatDong;
 use App\Models\HoatDong;
 use App\Models\Khoa;
 use App\Models\SinhVien;
 use App\Models\TieuChi;
 use App\Services\AuditLogger;
+use App\Services\ActivityLifecycleService;
 use App\Services\HoatDongService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class ActivityController extends Controller
 {
@@ -24,7 +26,10 @@ class ActivityController extends Controller
     {
         $activities = HoatDong::query()
             ->when(! $request->user()->can('manage all activities'), fn ($query) => $query->where('user_id', $request->user()->id))
-            ->withCount(['dangKyHoatDongs', 'diemDanhHoatDongs'])->latest()->paginate(15);
+            ->withCount([
+                'dangKyHoatDongs' => fn ($query) => $query->whereIn('trang_thai', ['approved', 'completed']),
+                'diemDanhHoatDongs',
+            ])->latest()->paginate(15);
 
         return view('doan-hoi.activities.index', compact('activities'));
     }
@@ -36,7 +41,10 @@ class ActivityController extends Controller
 
     public function store(Request $request, HoatDongService $service)
     {
-        $activity = HoatDong::create($this->validated($request) + ['user_id' => $request->user()->id]);
+        $activity = HoatDong::create($this->validated($request, true) + [
+            'user_id' => $request->user()->id,
+            'trang_thai' => HoatDong::STATUS_SCHEDULED,
+        ]);
         $activity->khoas()->sync($request->input('khoa_ids', []));
         $service->ensureQrToken($activity);
         app(AuditLogger::class)->write('activity.created', $activity);
@@ -54,21 +62,44 @@ class ActivityController extends Controller
     public function update(Request $request, HoatDong $hoatDong, HoatDongService $service)
     {
         $this->authorizeActivity($request, $hoatDong);
-        $hoatDong->update($this->validated($request));
+        $data = $this->validated($request);
+        $scheduleFields = ['open_registration_at', 'close_registration_at', 'thoi_gian_bat_dau', 'thoi_gian_ket_thuc'];
+        $scheduleBefore = $hoatDong->only($scheduleFields);
+        $scheduleEditable = in_array($hoatDong->trang_thai, [
+            HoatDong::STATUS_DRAFT,
+            HoatDong::STATUS_SCHEDULED,
+            HoatDong::STATUS_OPEN,
+        ], true);
+
+        if (! $scheduleEditable) {
+            unset($data['open_registration_at'], $data['close_registration_at'], $data['thoi_gian_bat_dau'], $data['thoi_gian_ket_thuc']);
+        } elseif (in_array($hoatDong->trang_thai, [HoatDong::STATUS_DRAFT, HoatDong::STATUS_SCHEDULED], true)) {
+            $data['trang_thai'] = HoatDong::STATUS_SCHEDULED;
+        } elseif ($data['open_registration_at']->isFuture()) {
+            throw ValidationException::withMessages([
+                'open_registration_at' => 'Hoạt động đã mở nên thời gian mở đăng ký không thể chuyển sang tương lai.',
+            ]);
+        }
+
+        $hoatDong->update($data);
         $hoatDong->khoas()->sync($request->input('khoa_ids', []));
         $service->ensureQrToken($hoatDong);
-        app(AuditLogger::class)->write('activity.updated', $hoatDong);
+        app(ActivityLifecycleService::class)->sync($hoatDong, 'schedule_updated');
+        $hoatDong->refresh();
+        app(AuditLogger::class)->write('activity.updated', $hoatDong, [
+            'schedule_before' => $scheduleBefore,
+            'schedule_after' => $hoatDong->only($scheduleFields),
+        ]);
 
         return redirect()->route('doan-hoi.activities.index')->with('status', 'Đã cập nhật hoạt động.');
     }
 
-    public function destroy(Request $request, HoatDong $hoatDong)
+    public function cancel(Request $request, HoatDong $hoatDong, ActivityLifecycleService $service)
     {
         $this->authorizeActivity($request, $hoatDong);
-        $hoatDong->delete();
-        app(AuditLogger::class)->write('activity.deleted', $hoatDong);
+        $service->cancel($hoatDong, $request->user());
 
-        return back()->with('status', 'Đã xóa hoạt động.');
+        return back()->with('status', 'Đã hủy hoạt động.');
     }
 
     public function registrations(Request $request, HoatDong $hoatDong)
@@ -77,16 +108,6 @@ class ActivityController extends Controller
         $registrations = $hoatDong->dangKyHoatDongs()->with('sinhVien.lop')->paginate(20);
 
         return view('doan-hoi.activities.registrations', compact('hoatDong', 'registrations'));
-    }
-
-    public function approve(Request $request, DangKyHoatDong $registration, HoatDongService $service)
-    {
-        $this->authorizeActivity($request, $registration->hoatDong);
-        $data = $request->validate(['trang_thai' => ['required', 'in:approved,rejected,cancelled']]);
-        $service->approve($registration, $request->user(), $data['trang_thai']);
-        app(AuditLogger::class)->write('activity.registration_reviewed', $registration, ['status' => $data['trang_thai']]);
-
-        return back()->with('status', 'Đã cập nhật đăng ký.');
     }
 
     public function attendance(Request $request, HoatDong $hoatDong, HoatDongService $service)
@@ -134,7 +155,7 @@ class ActivityController extends Controller
         abort_unless($request->user()->can('manage all activities') || $hoatDong->user_id === $request->user()->id, 403);
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, bool $creating = false): array
     {
         $validator = Validator::make($request->all(), [
             'tieu_chi_id' => ['nullable', 'exists:tieu_chis,id'],
@@ -146,19 +167,23 @@ class ActivityController extends Controller
             'location_lat' => ['nullable', 'numeric', 'between:-90,90'],
             'location_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'location_radius_meters' => ['required', 'integer', 'min:10', 'max:1000'],
-            'thoi_gian_bat_dau' => ['nullable', 'date'],
-            'thoi_gian_ket_thuc' => ['nullable', 'date'],
+            'open_registration_at' => ['required', 'date'],
+            'close_registration_at' => ['required', 'date', 'after:open_registration_at'],
+            'thoi_gian_bat_dau' => ['required', 'date', 'after_or_equal:close_registration_at'],
+            'thoi_gian_ket_thuc' => ['required', 'date', 'after:thoi_gian_bat_dau'],
             'so_luong_toi_da' => ['nullable', 'integer', 'min:1'],
             'diem_cong' => ['required', 'integer', 'between:-20,20'],
-            'trang_thai' => ['required', 'in:draft,open,closed,cancelled'],
         ]);
 
-        $validator->after(function ($validator) use ($request) {
-            if (filled($request->input('location_lat')) && filled($request->input('location_lng'))) {
-                return;
+        $validator->after(function ($validator) use ($request, $creating) {
+            if (! filled($request->input('location_lat')) || ! filled($request->input('location_lng'))) {
+                $validator->errors()->add('location_lat', 'Vui lòng chọn vị trí trên bản đồ trước khi lưu hoạt động.');
             }
 
-            $validator->errors()->add('location_lat', 'Vui lòng chọn vị trí trên bản đồ trước khi lưu hoạt động.');
+            if ($creating && filled($request->input('open_registration_at'))
+                && Carbon::parse($request->input('open_registration_at'), config('app.display_timezone'))->isPast()) {
+                $validator->errors()->add('open_registration_at', 'Thời gian mở đăng ký không được ở trong quá khứ.');
+            }
         });
 
         $data = $validator->validate();
@@ -166,6 +191,10 @@ class ActivityController extends Controller
         $data['auto_cong_diem'] = $request->boolean('auto_cong_diem');
         $data['is_bat_buoc'] = $request->boolean('is_bat_buoc');
         $data['dia_diem'] = ($data['dia_diem'] ?? null) ?: '12 Trịnh Đình Thảo, Tân Phú';
+
+        foreach (['open_registration_at', 'close_registration_at', 'thoi_gian_bat_dau', 'thoi_gian_ket_thuc'] as $field) {
+            $data[$field] = Carbon::parse($data[$field], config('app.display_timezone'))->utc();
+        }
 
         return $data;
     }

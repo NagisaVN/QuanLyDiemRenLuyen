@@ -26,4 +26,12 @@
             <p>Lịch sử điểm</p>
         </a>
     </li>
+    @can('view student notifications')
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('sinh-vien.notifications.*') ? 'active' : '' }}" href="{{ route('sinh-vien.notifications.index') }}">
+                <i class="nav-icon fas fa-bell"></i>
+                <p>Thông báo</p>
+            </a>
+        </li>
+    @endcan
 @endsection

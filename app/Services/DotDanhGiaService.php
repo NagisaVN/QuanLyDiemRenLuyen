@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\EvaluationClosedEvent;
+use App\Events\EvaluationOpenedEvent;
 use App\Models\DotDanhGia;
 use App\Models\HocKy;
 use App\Models\PhieuDanhGia;
@@ -150,8 +152,10 @@ class DotDanhGiaService
     {
         $lockedIds = [];
         $published = false;
+        $opened = false;
+        $closed = false;
 
-        DB::transaction(function () use ($dotDanhGia, $actor, &$lockedIds, &$published): void {
+        DB::transaction(function () use ($dotDanhGia, $actor, &$lockedIds, &$published, &$opened, &$closed): void {
             $period = DotDanhGia::query()->lockForUpdate()->findOrFail($dotDanhGia->id);
             $desiredStatus = $period->effectiveStatus();
             $now = now();
@@ -174,6 +178,8 @@ class DotDanhGiaService
 
             if ($period->trang_thai !== $desiredStatus) {
                 $published = $desiredStatus === DotDanhGia::STATUS_PUBLISHED;
+                $opened = $desiredStatus === DotDanhGia::STATUS_OPEN;
+                $closed = $desiredStatus === DotDanhGia::STATUS_CLOSED;
                 $period->update([
                     'trang_thai' => $desiredStatus,
                     'updated_by' => $actor?->id ?? $period->updated_by,
@@ -189,6 +195,14 @@ class DotDanhGiaService
 
         if ($published) {
             app(EvaluationStatusBroadcaster::class)->periodPublished($dotDanhGia->refresh());
+        }
+
+        if ($opened) {
+            EvaluationOpenedEvent::dispatch($dotDanhGia->refresh());
+        }
+
+        if ($closed) {
+            EvaluationClosedEvent::dispatch($dotDanhGia->refresh());
         }
 
         $dotDanhGia->refresh();
@@ -217,6 +231,10 @@ class DotDanhGiaService
                 'locked_by' => null,
             ]);
         app(AuditLogger::class)->write('evaluation_period.opened', $dotDanhGia, actorId: $user->id);
+
+        if ($dotDanhGia->refresh()->isStudentOpen()) {
+            EvaluationOpenedEvent::dispatch($dotDanhGia);
+        }
     }
 
     public function close(DotDanhGia $dotDanhGia, User $user): void
@@ -230,6 +248,7 @@ class DotDanhGiaService
             'updated_by' => $user->id,
         ]);
         app(AuditLogger::class)->write('evaluation_period.closed', $dotDanhGia, actorId: $user->id);
+        EvaluationClosedEvent::dispatch($dotDanhGia->refresh());
     }
 
     public function publish(DotDanhGia $dotDanhGia, User $user): void

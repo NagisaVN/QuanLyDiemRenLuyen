@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Backup;
-use App\Models\HoatDong;
 use App\Models\HocKy;
 use App\Models\Khoa;
 use App\Models\Lop;
@@ -72,6 +71,12 @@ class CrudController extends Controller
                 }
             }
 
+            if ($config['model'] === ThongBao::class) {
+                $data['user_id'] = $request->user()->id;
+                $data['doi_tuong'] = 'sinh_vien';
+                $data['published_at'] ??= now();
+            }
+
             $item = $config['model']::create($data);
             $this->syncExtras($request, $item, $roleNames, $studentData);
 
@@ -130,6 +135,11 @@ class CrudController extends Controller
                 if ($roleNames->contains('sinh_vien') && blank($data['ma_dang_nhap'] ?? null)) {
                     $data['ma_dang_nhap'] = $studentData['ma_sinh_vien'];
                 }
+            }
+
+            if ($config['model'] === ThongBao::class) {
+                $data['doi_tuong'] = 'sinh_vien';
+                $data['published_at'] ??= $item->published_at ?? now();
             }
 
             $item->update($data);
@@ -270,10 +280,6 @@ class CrudController extends Controller
             }
         }
 
-        if ($item instanceof HoatDong) {
-            $item->khoas()->sync($request->input('khoa_ids', []));
-        }
-
         if ($item instanceof Role) {
             $permissions = Permission::query()->whereIn('id', $request->input('permissions', []))->pluck('name');
             $item->syncPermissions($permissions);
@@ -361,30 +367,12 @@ class CrudController extends Controller
                 'trang_thai' => ['label' => 'Trạng thái', 'type' => 'select', 'options' => 'minh_chung_statuses', 'rules' => ['required', Rule::in(['pending', 'approved', 'rejected'])]],
                 'ghi_chu_duyet' => ['label' => 'Ghi chú duyệt', 'type' => 'textarea', 'rules' => ['nullable', 'string']],
             ]],
-            'hoat-dongs' => ['title' => 'Hoạt động', 'model' => HoatDong::class, 'columns' => ['ma_hoat_dong', 'ten_hoat_dong', 'trang_thai'], 'fields' => [
-                'tieu_chi_id' => ['label' => 'Tiêu chí cộng điểm', 'type' => 'select', 'options' => 'tieu_chis', 'rules' => ['nullable', 'exists:tieu_chis,id']],
-                'ma_hoat_dong' => ['label' => 'Mã hoạt động', 'rules' => ['required', 'string', 'max:50']],
-                'ten_hoat_dong' => ['label' => 'Tên hoạt động', 'rules' => ['required', 'string', 'max:255']],
-                'loai_hoat_dong' => ['label' => 'Loại hoạt động', 'rules' => ['required', 'string', 'max:100']],
-                'mo_ta' => ['label' => 'Mô tả', 'type' => 'textarea', 'rules' => ['nullable', 'string']],
-                'dia_diem' => ['label' => 'Địa điểm', 'rules' => ['nullable', 'string', 'max:255']],
-                'location_lat' => ['label' => 'Latitude GPS', 'type' => 'number', 'step' => '0.0000001', 'rules' => ['nullable', 'numeric', 'between:-90,90']],
-                'location_lng' => ['label' => 'Longitude GPS', 'type' => 'number', 'step' => '0.0000001', 'rules' => ['nullable', 'numeric', 'between:-180,180']],
-                'location_radius_meters' => ['label' => 'Bán kính GPS (m)', 'type' => 'number', 'rules' => ['nullable', 'integer', 'min:10', 'max:1000']],
-                'thoi_gian_bat_dau' => ['label' => 'Bắt đầu', 'type' => 'datetime-local', 'rules' => ['nullable', 'date']],
-                'thoi_gian_ket_thuc' => ['label' => 'Kết thúc', 'type' => 'datetime-local', 'rules' => ['nullable', 'date']],
-                'so_luong_toi_da' => ['label' => 'Số lượng tối đa', 'type' => 'number', 'rules' => ['nullable', 'integer', 'min:1']],
-                'diem_cong' => ['label' => 'Điểm cộng', 'type' => 'number', 'rules' => ['required', 'integer', 'between:-20,20']],
-                'trang_thai' => ['label' => 'Trạng thái', 'type' => 'select', 'options' => 'hoat_dong_statuses', 'rules' => ['required', Rule::in(['draft', 'open', 'closed', 'cancelled'])]],
-                'auto_cong_diem' => ['label' => 'Tự động cộng điểm', 'type' => 'checkbox'],
-                'is_bat_buoc' => ['label' => 'Hoạt động bắt buộc', 'type' => 'checkbox'],
-            ]],
             'thong-baos' => ['title' => 'Thông báo', 'model' => ThongBao::class, 'columns' => ['tieu_de', 'loai', 'is_active'], 'fields' => [
                 'hoc_ky_id' => ['label' => 'Học kỳ', 'type' => 'select', 'options' => 'hoc_kys', 'rules' => ['nullable', 'exists:hoc_kys,id']],
                 'tieu_de' => ['label' => 'Tiêu đề', 'rules' => ['required', 'string', 'max:255']],
                 'noi_dung' => ['label' => 'Nội dung', 'type' => 'textarea', 'rules' => ['required', 'string']],
-                'loai' => ['label' => 'Loại', 'rules' => ['required', 'string', 'max:50']],
-                'doi_tuong' => ['label' => 'Đối tượng', 'rules' => ['nullable', 'string', 'max:100']],
+                'loai' => ['label' => 'Loại', 'type' => 'select', 'options' => 'thong_bao_types', 'rules' => ['required', Rule::in(['general', 'announcement', 'feature', 'system'])]],
+                'doi_tuong' => ['label' => 'Đối tượng', 'type' => 'select', 'options' => 'notification_audiences', 'rules' => ['required', Rule::in(['sinh_vien'])]],
                 'published_at' => ['label' => 'Ngày đăng', 'type' => 'datetime-local', 'rules' => ['nullable', 'date']],
                 'het_han_at' => ['label' => 'Hết hạn', 'type' => 'datetime-local', 'rules' => ['nullable', 'date']],
                 'is_active' => ['label' => 'Đang hoạt động', 'type' => 'checkbox'],
@@ -412,6 +400,7 @@ class CrudController extends Controller
             'roles', 'permissions' => 'manage roles',
             'logs' => 'view audit logs',
             'backups' => 'manage backups',
+            'thong-baos' => 'manage notifications',
             default => 'manage master data',
         };
 
@@ -443,7 +432,8 @@ class CrudController extends Controller
             'sinh_vien_statuses' => collect(['dang_hoc', 'bao_luu', 'da_tot_nghiep'])->mapWithKeys(fn (string $status) => [$status => config("ui.statuses.$status", $status)]),
             'minh_chung_statuses' => collect(['pending', 'approved', 'rejected'])->mapWithKeys(fn (string $status) => [$status => config("ui.statuses.$status", $status)]),
             'muc_tieu_chi_types' => collect(['heading' => 'Dòng tiêu đề', 'item' => 'Dòng chấm điểm']),
-            'hoat_dong_statuses' => collect(['draft', 'open', 'closed', 'cancelled'])->mapWithKeys(fn (string $status) => [$status => config("ui.statuses.$status", $status)]),
+            'thong_bao_types' => collect(['general' => 'Thông báo chung', 'announcement' => 'Thông báo quản trị', 'feature' => 'Chức năng mới', 'system' => 'Cập nhật hệ thống']),
+            'notification_audiences' => collect(['sinh_vien' => 'Toàn bộ sinh viên đang học']),
             'role_codes' => collect(config('ui.roles', [])),
             'role_names' => Role::pluck('name', 'id'),
             'roles' => Role::pluck('name', 'id')->map(fn (string $name) => config("ui.roles.$name", $name)),

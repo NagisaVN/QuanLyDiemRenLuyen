@@ -16,7 +16,6 @@
             'tieu-chis' => ['label' => 'Tiêu chí', 'icon' => 'fas fa-list-ol'],
             'muc-tieu-chis' => ['label' => 'Mức tiêu chí', 'icon' => 'fas fa-layer-group'],
             'minh-chungs' => ['label' => 'Minh chứng', 'icon' => 'fas fa-paperclip'],
-            'hoat-dongs' => ['label' => 'Hoạt động', 'icon' => 'fas fa-calendar-day'],
             'thong-baos' => ['label' => 'Thông báo', 'icon' => 'fas fa-bell'],
             'logs' => ['label' => 'Nhật ký hệ thống', 'icon' => 'fas fa-history'],
             'backups' => ['label' => 'Sao lưu dữ liệu', 'icon' => 'fas fa-database'],
@@ -35,6 +34,13 @@
             <p>Đợt đánh giá</p>
         </a>
     </li>
+    @can('manage activities')
+        <li class="nav-item">
+            <a class="nav-link" href="{{ route('doan-hoi.activities.index') }}">
+                <i class="nav-icon fas fa-calendar-day"></i><p>Hoạt động</p>
+            </a>
+        </li>
+    @endcan
     @foreach ($modules as $module => $item)
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.crud.*') && $currentModule === $module ? 'active' : '' }}" href="{{ route('admin.crud.index', $module) }}">

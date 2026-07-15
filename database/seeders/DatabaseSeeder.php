@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             'manage all activities', 'view audit logs', 'manage backups',
             'self evaluate', 'review class forms', 'approve final scores', 'export reports',
             'manage_dot_danh_gia', 'open_dot_danh_gia', 'close_dot_danh_gia', 'publish_dot_danh_gia',
+            'view student notifications', 'manage notifications',
         ];
 
         foreach ($permissions as $permission) {
@@ -41,7 +42,7 @@ class DatabaseSeeder extends Seeder
         }
 
         Role::findByName('admin')->syncPermissions(Permission::all());
-        Role::findByName('sinh_vien')->syncPermissions(['self evaluate']);
+        Role::findByName('sinh_vien')->syncPermissions(['self evaluate', 'view student notifications']);
         Role::findByName('gvcn')->syncPermissions(['review class forms']);
         Role::findByName('can_bo_doan_hoi')->syncPermissions(['manage activities']);
         Role::findByName('hoi_dong_khoa')->syncPermissions([
@@ -134,6 +135,8 @@ class DatabaseSeeder extends Seeder
             'location_lat' => null,
             'location_lng' => null,
             'location_radius_meters' => 100,
+            'open_registration_at' => now()->subDay(),
+            'close_registration_at' => now()->addDays(4),
             'thoi_gian_bat_dau' => now()->addDays(5),
             'thoi_gian_ket_thuc' => now()->addDays(5)->addHours(3),
             'so_luong_toi_da' => 100,

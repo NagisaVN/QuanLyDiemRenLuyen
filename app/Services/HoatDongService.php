@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\ActivityRegistrationCountChanged;
 use App\Models\AttendanceSession;
 use App\Models\ConductPointLog;
 use App\Models\DangKyHoatDong;
@@ -15,12 +16,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class HoatDongService
 {
     private const MAX_GPS_ACCURACY_METERS = 100;
 
-    public function __construct(private readonly DiemRenLuyenService $diemService) {}
+    public function __construct(
+        private readonly DiemRenLuyenService $diemService,
+        private readonly ActivityLifecycleService $lifecycleService,
+        private readonly StudentNotificationService $notificationService,
+    ) {}
 
     public function ensureQrToken(HoatDong $hoatDong): HoatDong
     {
@@ -33,37 +39,55 @@ class HoatDongService
 
     public function register(HoatDong $hoatDong, SinhVien $sinhVien): DangKyHoatDong
     {
-        return DB::transaction(function () use ($hoatDong, $sinhVien): DangKyHoatDong {
-            $hoatDong = HoatDong::query()->lockForUpdate()->findOrFail($hoatDong->id);
-
-            if ($hoatDong->trang_thai !== 'open') {
-                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động chưa mở đăng ký.']);
+        $registration = DB::transaction(function () use ($hoatDong, $sinhVien): DangKyHoatDong {
+            if ($sinhVien->trang_thai !== 'dang_hoc') {
+                throw ValidationException::withMessages(['hoat_dong' => 'Táº¡m thá»i khÃ´ng thá»ƒ Ä‘Äƒng kÃ½ hoáº¡t Ä‘á»™ng vá»›i tráº¡ng thÃ¡i sinh viÃªn hiá»‡n táº¡i.']);
             }
 
-            if ($hoatDong->khoas()->exists() && ! $hoatDong->khoas()->whereKey($sinhVien->lop->khoa_id)->exists()) {
+            $sinhVien->loadMissing('lop');
+            $locked = HoatDong::query()->lockForUpdate()->findOrFail($hoatDong->id);
+            $this->lifecycleService->syncLocked($locked, 'registration_request');
+
+            if (! $locked->canRegister()) {
+                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động chưa mở hoặc đã hết hạn đăng ký.']);
+            }
+
+            if ($locked->khoas()->exists() && ! $locked->khoas()->whereKey($sinhVien->lop->khoa_id)->exists()) {
                 throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động không áp dụng cho khoa của sinh viên.']);
             }
 
-            if ($hoatDong->so_luong_toi_da && $hoatDong->dangKyHoatDongs()->whereIn('trang_thai', ['pending', 'approved', 'attended'])->count() >= $hoatDong->so_luong_toi_da) {
-                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động đã đủ số lượng.']);
+            if ($locked->dangKyHoatDongs()->where('sinh_vien_id', $sinhVien->id)->exists()) {
+                throw ValidationException::withMessages(['hoat_dong' => 'Bạn đã đăng ký hoạt động này trước đó.']);
             }
 
-            return DangKyHoatDong::firstOrCreate(
-                ['hoat_dong_id' => $hoatDong->id, 'sinh_vien_id' => $sinhVien->id],
-                ['trang_thai' => 'pending']
-            );
+            if ($locked->so_luong_toi_da && $this->registeredCount($locked) >= $locked->so_luong_toi_da) {
+                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động đã đủ số lượng đăng ký.']);
+            }
+
+            return DangKyHoatDong::create([
+                'hoat_dong_id' => $locked->id,
+                'sinh_vien_id' => $sinhVien->id,
+                'trang_thai' => 'approved',
+                'registered_at' => now(),
+                'approved_at' => now(),
+            ]);
         });
-    }
 
-    public function approve(DangKyHoatDong $registration, User $user, string $status = 'approved'): DangKyHoatDong
-    {
-        $registration->update([
-            'trang_thai' => $status,
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-        ]);
+        $hoatDong->refresh();
+        $count = $this->registeredCount($hoatDong);
+        $remaining = $hoatDong->so_luong_toi_da === null ? null : max(0, $hoatDong->so_luong_toi_da - $count);
 
-        return $registration->refresh();
+        try {
+            ActivityRegistrationCountChanged::dispatch($hoatDong->id, $count, $remaining);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $sinhVien->loadMissing('user');
+        $this->notificationService->activityRegistrationConfirmed($hoatDong, $sinhVien->user);
+        app(AuditLogger::class)->write('activity.registered', $registration, ['activity_id' => $hoatDong->id], actorId: $sinhVien->user_id);
+
+        return $registration;
     }
 
     public function createAttendanceSession(HoatDong $hoatDong, User $user, string $type, CarbonInterface $startAt, CarbonInterface $endAt): AttendanceSession
@@ -109,7 +133,7 @@ class HoatDongService
             throw ValidationException::withMessages(['attendance' => 'Bạn chưa đăng ký hoạt động này.']);
         }
 
-        if (! in_array($registration->trang_thai, ['approved', 'attended'], true)) {
+        if (! in_array($registration->trang_thai, ['approved', 'completed'], true)) {
             throw ValidationException::withMessages(['attendance' => 'Đăng ký hoạt động của bạn chưa được duyệt.']);
         }
 
@@ -173,7 +197,7 @@ class HoatDongService
                 'ip_address' => $request->ip(),
             ])->save();
 
-            $registration->update(['trang_thai' => 'attended']);
+            $registration->update(['trang_thai' => 'completed']);
 
             return $attendance->refresh();
         });
@@ -190,7 +214,7 @@ class HoatDongService
             throw ValidationException::withMessages(['dang_ky' => 'Sinh viên chưa đăng ký hoạt động này.']);
         }
 
-        if (! in_array($registration->trang_thai, ['approved', 'attended'], true)) {
+        if (! in_array($registration->trang_thai, ['approved', 'completed'], true)) {
             throw ValidationException::withMessages(['dang_ky' => 'Sinh viên chưa được duyệt tham gia.']);
         }
 
@@ -208,7 +232,7 @@ class HoatDongService
         );
 
         if ($method === 'manual') {
-            $registration->update(['trang_thai' => 'attended']);
+            $registration->update(['trang_thai' => 'completed']);
         }
 
         return $attendance;
@@ -278,6 +302,11 @@ class HoatDongService
             'ly_do' => $reason,
             'metadata' => ['hoat_dong_id' => $hoatDong->id],
         ]);
+    }
+
+    public function registeredCount(HoatDong $hoatDong): int
+    {
+        return $hoatDong->dangKyHoatDongs()->whereIn('trang_thai', ['approved', 'completed'])->count();
     }
 
     private function assertValidSession(AttendanceSession $session, string $token): void

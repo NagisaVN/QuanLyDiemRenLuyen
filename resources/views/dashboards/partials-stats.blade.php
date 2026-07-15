@@ -7,7 +7,7 @@
     $studentCountUrl = null;
 
     if ($user?->hasRole('admin')) {
-        $openActivitiesUrl = route('admin.crud.index', 'hoat-dongs');
+        $openActivitiesUrl = route('doan-hoi.activities.index');
         $studentCountUrl = route('admin.crud.index', 'sinh-viens');
     }
 

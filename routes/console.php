@@ -13,3 +13,11 @@ Schedule::command('evaluations:sync-statuses')
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
+Schedule::command('notifications:reconcile')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('activities:auto-status')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();

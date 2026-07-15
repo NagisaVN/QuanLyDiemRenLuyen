@@ -148,6 +148,10 @@ class AttendanceQrGpsTest extends TestCase
             'location_lng' => 106,
             'location_radius_meters' => 100,
             'diem_cong' => 5,
+            'open_registration_at' => now()->subDay(),
+            'close_registration_at' => now()->addDay(),
+            'thoi_gian_bat_dau' => now()->addDays(2),
+            'thoi_gian_ket_thuc' => now()->addDays(2)->addHours(2),
             'trang_thai' => 'open',
             'auto_cong_diem' => true,
         ]);
@@ -156,6 +160,7 @@ class AttendanceQrGpsTest extends TestCase
             'hoat_dong_id' => $activity->id,
             'sinh_vien_id' => $student->id,
             'trang_thai' => 'approved',
+            'registered_at' => now(),
             'approved_by' => $staff->id,
             'approved_at' => now(),
         ]);

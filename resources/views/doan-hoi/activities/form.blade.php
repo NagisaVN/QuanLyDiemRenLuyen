@@ -29,6 +29,8 @@
         'radius' => $mapRadius,
         'hasSelectedLocation' => $hasSelectedLocation,
     ];
+    $datetime = fn ($value) => $value?->copy()->timezone(config('app.display_timezone'))->format('Y-m-d\TH:i');
+    $scheduleLocked = $hoatDong->exists && ! in_array($hoatDong->trang_thai, ['draft', 'scheduled', 'open'], true);
 @endphp
 
 <form method="POST" action="{{ $hoatDong->exists ? route('doan-hoi.activities.update', $hoatDong) : route('doan-hoi.activities.store') }}" class="table-card p-3">
@@ -116,14 +118,37 @@
             </div>
         </div>
 
-        <div class="col-md-3">
-            <label class="form-label" for="thoi_gian_bat_dau">Bắt đầu</label>
-            <input class="form-control" id="thoi_gian_bat_dau" type="datetime-local" name="thoi_gian_bat_dau" value="{{ old('thoi_gian_bat_dau', optional($hoatDong->thoi_gian_bat_dau)->format('Y-m-d\TH:i')) }}">
+        <div class="col-12">
+            <div class="alert alert-info mb-0">
+                <i class="fas fa-clock mr-2"></i>
+                @if ($scheduleLocked)
+                    Lịch của hoạt động đã đóng đăng ký, kết thúc hoặc bị hủy nên chỉ được xem, không thể chỉnh sửa.
+                @elseif ($hoatDong->trang_thai === 'open')
+                    Hoạt động đang mở. Có thể điều chỉnh lịch tương lai, nhưng thời gian mở đăng ký không thể chuyển sang tương lai.
+                @else
+                    Hoạt động sẽ tự động mở đăng ký vào thời gian đã chọn. Trạng thái sau khi lưu: <strong>Đã lên lịch</strong>.
+                @endif
+            </div>
         </div>
 
-        <div class="col-md-3">
-            <label class="form-label" for="thoi_gian_ket_thuc">Kết thúc</label>
-            <input class="form-control" id="thoi_gian_ket_thuc" type="datetime-local" name="thoi_gian_ket_thuc" value="{{ old('thoi_gian_ket_thuc', optional($hoatDong->thoi_gian_ket_thuc)->format('Y-m-d\TH:i')) }}">
+        <div class="col-md-6">
+            <label class="form-label" for="open_registration_at">Ngày giờ mở đăng ký <span class="required-marker">*</span></label>
+            <input class="form-control" id="open_registration_at" type="datetime-local" name="open_registration_at" required @readonly($scheduleLocked) value="{{ old('open_registration_at', $datetime($hoatDong->open_registration_at)) }}">
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label" for="close_registration_at">Ngày giờ đóng đăng ký <span class="required-marker">*</span></label>
+            <input class="form-control" id="close_registration_at" type="datetime-local" name="close_registration_at" required @readonly($scheduleLocked) value="{{ old('close_registration_at', $datetime($hoatDong->close_registration_at)) }}">
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label" for="thoi_gian_bat_dau">Thời gian bắt đầu hoạt động <span class="required-marker">*</span></label>
+            <input class="form-control" id="thoi_gian_bat_dau" type="datetime-local" name="thoi_gian_bat_dau" required @readonly($scheduleLocked) value="{{ old('thoi_gian_bat_dau', $datetime($hoatDong->thoi_gian_bat_dau)) }}">
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label" for="thoi_gian_ket_thuc">Thời gian kết thúc hoạt động <span class="required-marker">*</span></label>
+            <input class="form-control" id="thoi_gian_ket_thuc" type="datetime-local" name="thoi_gian_ket_thuc" required @readonly($scheduleLocked) value="{{ old('thoi_gian_ket_thuc', $datetime($hoatDong->thoi_gian_ket_thuc)) }}">
         </div>
 
         <div class="col-md-3">
@@ -134,15 +159,6 @@
         <div class="col-md-3">
             <label class="form-label" for="diem_cong">Điểm cộng/trừ <span class="required-marker" aria-hidden="true">*</span></label>
             <input class="form-control" id="diem_cong" type="number" step="1" min="-20" max="20" name="diem_cong" required value="{{ old('diem_cong', $hoatDong->diem_cong ?? 0) }}">
-        </div>
-
-        <div class="col-md-3">
-            <label class="form-label" for="trang_thai">Trạng thái <span class="required-marker" aria-hidden="true">*</span></label>
-            <select class="form-select" id="trang_thai" name="trang_thai" required>
-                @foreach (['draft', 'open', 'closed', 'cancelled'] as $status)
-                    <option value="{{ $status }}" @selected(old('trang_thai', $hoatDong->trang_thai ?? 'open') === $status)>{{ config("ui.statuses.$status", $status) }}</option>
-                @endforeach
-            </select>
         </div>
 
         <div class="col-md-3 d-flex align-items-end">

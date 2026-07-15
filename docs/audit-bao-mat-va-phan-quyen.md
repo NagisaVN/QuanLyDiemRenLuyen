@@ -47,12 +47,12 @@ Tự đăng ký và tự xóa tài khoản không được public.
 
 - `GET /dashboard` điều hướng theo permission; dashboard đích: `/admin/dashboard`, `/sinh-vien/dashboard`, `/gvcn/dashboard`, `/doan-hoi/dashboard`, `/hoi-dong/dashboard`.
 - Đợt đánh giá: `GET|POST /admin/dot-danh-gia`, `GET /create`, `GET /{dotDanhGia}/edit`, `PUT|DELETE /{dotDanhGia}`, `GET /{dotDanhGia}/ket-qua`, `GET /{dotDanhGia}/export`.
-- CRUD admin áp dụng cho `users`, `roles`, `permissions`, `khoas`, `lops`, `sinh-viens`, `nam-hocs`, `hoc-kys`, `tieu-chis`, `muc-tieu-chis`, `minh-chungs`, `hoat-dongs`, `thong-baos`, `logs`, `backups`: `GET /admin/{module}`, `GET /create`, `POST`, `GET /{id}`, `GET /{id}/edit`, `PUT /{id}`, `DELETE /{id}`.
+- CRUD admin áp dụng cho `users`, `roles`, `permissions`, `khoas`, `lops`, `sinh-viens`, `nam-hocs`, `hoc-kys`, `tieu-chis`, `muc-tieu-chis`, `minh-chungs`, `thong-baos`, `logs`, `backups`. Hoạt động dùng controller chuyên dụng; URL admin cũ chỉ chuyển hướng tương thích sang `/doan-hoi/activities`.
 - User restore: `POST /admin/users/{id}/restore`. `logs` và `backups` chỉ đọc qua CRUD UI.
 
 ### Sinh viên
 
-`GET|PUT /sinh-vien/phieu-danh-gia`, `POST /submit`, `POST /minh-chung`, `GET /lich-su`, `GET /in`, `GET /sinh-vien/hoat-dong`, `POST /hoat-dong/{hoatDong}/dang-ky`, `POST /hoat-dong/{hoatDong}/check-in`, `GET /sinh-vien/diem-danh/scan`, `GET /minh-chung/{minhChung}/download`.
+`GET|PUT /sinh-vien/phieu-danh-gia`, `POST /submit`, `POST /minh-chung`, `GET /lich-su`, `GET /in`, `GET /sinh-vien/hoat-dong`, `GET /hoat-dong/{hoatDong}`, `POST /hoat-dong/{hoatDong}/dang-ky`, `POST /hoat-dong/{hoatDong}/check-in`, `GET /sinh-vien/diem-danh/scan`, `GET /minh-chung/{minhChung}/download`.
 
 ### GVCN
 
@@ -60,7 +60,7 @@ Tự đăng ký và tự xóa tài khoản không được public.
 
 ### Đoàn–Hội
 
-Resource `/doan-hoi/activities` trừ show; thêm `GET /{hoatDong}/registrations`, `POST /registrations/{registration}/approve`, `POST /{hoatDong}/attendance`, `GET /{hoatDong}/qr`, `POST /{hoatDong}/manual-adjust`.
+Resource `/doan-hoi/activities` không có show/delete; thêm `GET /{hoatDong}/registrations`, `POST /{hoatDong}/cancel`, `POST /{hoatDong}/attendance`, `GET /{hoatDong}/qr`, `POST /{hoatDong}/manual-adjust`. Không còn route duyệt/từ chối đăng ký hoặc mở thủ công. Command `activities:auto-status` chạy mỗi phút để chuyển `scheduled → open → registration_closed → completed`.
 
 ### Hội đồng/CTSV và JSON API
 
@@ -75,12 +75,12 @@ Ký hiệu: R đọc, C tạo, U sửa, D xóa/soft-delete, A duyệt/chốt, X 
 | --- | --- | --- | --- | --- |
 | admin | User, role, permission | `/admin/users|roles|permissions` | Toàn hệ thống | R/C/U/D; restore; gán role/permission |
 | admin | Dữ liệu nền, audit, backup | `/admin/{module}` | Toàn hệ thống; log/backup chỉ đọc | R/C/U/D; log/backup R |
-| admin | Đợt, hoạt động, báo cáo | admin period, activity, export routes | Toàn hệ thống | R/C/U/D/A/X |
+| admin | Đợt, hoạt động, báo cáo | admin period, activity, export routes | Toàn hệ thống | R/C/U/hủy/X; trạng thái hoạt động tự động |
 | sinh_vien | Phiếu và minh chứng | `/sinh-vien/phieu-danh-gia*` | Chỉ `sinh_vien_id` của mình | R/C/U; submit; không D/A |
-| sinh_vien | Hoạt động, QR | student activity + attendance scan API | Hoạt động áp dụng cho khoa; đăng ký của mình | R/C/U check-in/out |
+| sinh_vien | Hoạt động, QR | student activity + attendance scan API | Hoạt động áp dụng cho khoa; đăng ký của mình | R/C được duyệt ngay; check-in/out |
 | gvcn | Phiếu lớp | `/gvcn/phieu-danh-gia*` | Chỉ lớp có `lops.gvcn_id = user.id` | R/U/A |
 | gvcn | Minh chứng | review/download evidence | Chỉ sinh viên lớp phụ trách | R/A |
-| can_bo_doan_hoi | Hoạt động | `/doan-hoi/activities*`, attendance APIs | Chỉ `hoat_dongs.user_id = user.id` | R/C/U/D/A |
+| can_bo_doan_hoi | Hoạt động | `/doan-hoi/activities*`, attendance APIs | Chỉ `hoat_dongs.user_id = user.id` | R/C/U/hủy; không mở/duyệt thủ công |
 | hoi_dong_khoa | Duyệt cuối | `/hoi-dong/phieu-danh-gia*` | Toàn trường | R/U/A |
 | hoi_dong_khoa | Đợt và báo cáo | admin period + export routes | Toàn trường | R/C/U/D/A/X theo permission |
 | role tùy chỉnh | Bất kỳ capability | Route gắn permission tương ứng | Policy phạm vi vẫn bắt buộc | Theo permission được admin gán |
