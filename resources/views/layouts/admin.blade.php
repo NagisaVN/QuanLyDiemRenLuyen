@@ -36,7 +36,7 @@
     </li>
     @can('manage activities')
         <li class="nav-item">
-            <a class="nav-link" href="{{ route('doan-hoi.activities.index') }}">
+            <a class="nav-link {{ request()->routeIs('doan-hoi.activities.*') ? 'active' : '' }}" href="{{ route('doan-hoi.activities.index') }}">
                 <i class="nav-icon fas fa-calendar-day"></i><p>Hoạt động</p>
             </a>
         </li>

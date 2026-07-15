@@ -1,4 +1,4 @@
-@extends('layouts.doan-hoi')
+@extends(auth()->user()->hasRole('admin') ? 'layouts.admin' : 'layouts.doan-hoi')
 
 @section('page-title', 'QR điểm danh')
 
