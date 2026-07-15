@@ -160,6 +160,7 @@ class DatabaseSeeder extends Seeder
             'ngay_cong_bo' => now()->addMonth(),
             'trang_thai' => 'open',
             'mo_ta' => 'Đợt mẫu để sinh viên tự đánh giá và GVCN duyệt theo thời hạn.',
+            'is_system_sample' => true,
             'created_by' => $admin->id,
             'updated_by' => $hoiDong->id,
         ]);

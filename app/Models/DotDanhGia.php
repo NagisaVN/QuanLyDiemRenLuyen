@@ -30,6 +30,7 @@ class DotDanhGia extends Model
             'ngay_bat_dau_gvcn' => 'datetime',
             'ngay_ket_thuc_gvcn' => 'datetime',
             'ngay_cong_bo' => 'datetime',
+            'is_system_sample' => 'boolean',
         ];
     }
 
