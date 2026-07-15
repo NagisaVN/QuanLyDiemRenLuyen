@@ -82,15 +82,13 @@ class DotDanhGiaController extends Controller
 
     public function destroy(DotDanhGia $dotDanhGia)
     {
-        if ($dotDanhGia->is_system_sample) {
-            throw ValidationException::withMessages(['dot_danh_gia' => 'Không thể xóa đợt đánh giá mẫu của hệ thống.']);
-        }
+        $effectiveStatus = $dotDanhGia->effectiveStatus();
 
-        if ($dotDanhGia->effectiveStatus() === DotDanhGia::STATUS_PUBLISHED) {
+        if ($effectiveStatus === DotDanhGia::STATUS_PUBLISHED) {
             throw ValidationException::withMessages(['dot_danh_gia' => 'Không thể xóa đợt đã công bố.']);
         }
 
-        if ($dotDanhGia->phieuDanhGias()->exists()) {
+        if ($effectiveStatus !== DotDanhGia::STATUS_DRAFT && $dotDanhGia->phieuDanhGias()->exists()) {
             throw ValidationException::withMessages(['dot_danh_gia' => 'Không thể xóa đợt đã có phiếu đánh giá.']);
         }
 

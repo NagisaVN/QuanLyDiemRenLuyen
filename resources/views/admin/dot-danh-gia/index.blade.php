@@ -100,9 +100,7 @@
                                     @endif
 
                                     @can('manage_dot_danh_gia')
-                                        @if ($dot->is_system_sample)
-                                            <button class="btn btn-sm btn-outline-danger" type="button" disabled title="Đợt đánh giá mẫu của hệ thống không thể xóa">Xóa</button>
-                                        @elseif ($dot->phieu_danh_gias_count === 0)
+                                        @if ($effectiveStatus === 'draft' || $dot->phieu_danh_gias_count === 0)
                                             <form method="POST" action="{{ route('admin.dot-danh-gia.destroy', $dot) }}" onsubmit="return confirm('Xóa đợt đánh giá này?')">
                                                 @csrf
                                                 @method('DELETE')

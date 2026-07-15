@@ -191,33 +191,38 @@ class EvaluationPeriodCurrentTest extends TestCase
         $this->assertDatabaseHas('dot_danh_gias', ['id' => $published->id]);
     }
 
-    public function test_system_sample_period_cannot_be_deleted_even_without_forms(): void
+    public function test_draft_period_can_be_deleted_even_when_it_has_a_form(): void
     {
         $this->travelTo(Carbon::parse('2026-07-04 10:00:00'));
         $data = $this->baseData(withPermissions: true);
-        $sample = $this->createDot($data['hk1'], $data['admin'], DotDanhGia::STATUS_DRAFT, [
-            'ten_dot' => 'Đợt đánh giá mẫu',
+        $draft = $this->createDot($data['hk1'], $data['admin'], DotDanhGia::STATUS_DRAFT, [
+            'ten_dot' => 'Đợt đánh giá nháp có phiếu',
             'ngay_bat_dau_sinh_vien' => now()->addDay(),
             'ngay_ket_thuc_sinh_vien' => now()->addDays(2),
             'ngay_bat_dau_gvcn' => now()->addDays(2),
             'ngay_ket_thuc_gvcn' => now()->addDays(3),
-            'is_system_sample' => true,
+        ]);
+        $form = PhieuDanhGia::create([
+            'sinh_vien_id' => $data['student']->id,
+            'hoc_ky_id' => $data['hk1']->id,
+            'dot_danh_gia_id' => $draft->id,
+            'trang_thai' => PhieuDanhGia::STATUS_DRAFT,
         ]);
 
         $this->actingAs($data['admin'])
             ->get(route('admin.dot-danh-gia.index'))
             ->assertOk()
-            ->assertSee('Đợt đánh giá mẫu của hệ thống không thể xóa');
+            ->assertSee(route('admin.dot-danh-gia.destroy', $draft), false);
 
         $this->actingAs($data['admin'])
-            ->from(route('admin.dot-danh-gia.index'))
-            ->delete(route('admin.dot-danh-gia.destroy', $sample))
-            ->assertRedirect(route('admin.dot-danh-gia.index'))
-            ->assertSessionHasErrors('dot_danh_gia');
+            ->delete(route('admin.dot-danh-gia.destroy', $draft))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('dot_danh_gias', [
-            'id' => $sample->id,
-            'is_system_sample' => true,
+        $this->assertDatabaseMissing('dot_danh_gias', ['id' => $draft->id]);
+        $this->assertDatabaseHas('phieu_danh_gias', [
+            'id' => $form->id,
+            'dot_danh_gia_id' => null,
         ]);
     }
 
@@ -356,7 +361,6 @@ class EvaluationPeriodCurrentTest extends TestCase
             'created_by' => $admin->id,
             'updated_by' => $overrides['updated_by'] ?? null,
             'mo_ta' => $overrides['mo_ta'] ?? null,
-            'is_system_sample' => $overrides['is_system_sample'] ?? false,
         ]);
     }
 
