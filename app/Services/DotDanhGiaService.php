@@ -216,6 +216,7 @@ class DotDanhGiaService
                 'locked_at' => null,
                 'locked_by' => null,
             ]);
+        app(AuditLogger::class)->write('evaluation_period.opened', $dotDanhGia, actorId: $user->id);
     }
 
     public function close(DotDanhGia $dotDanhGia, User $user): void
@@ -228,6 +229,7 @@ class DotDanhGiaService
             'trang_thai' => DotDanhGia::STATUS_CLOSED,
             'updated_by' => $user->id,
         ]);
+        app(AuditLogger::class)->write('evaluation_period.closed', $dotDanhGia, actorId: $user->id);
     }
 
     public function publish(DotDanhGia $dotDanhGia, User $user): void
@@ -262,5 +264,6 @@ class DotDanhGiaService
         });
 
         app(EvaluationStatusBroadcaster::class)->periodPublished($dotDanhGia->refresh());
+        app(AuditLogger::class)->write('evaluation_period.published', $dotDanhGia, actorId: $user->id);
     }
 }

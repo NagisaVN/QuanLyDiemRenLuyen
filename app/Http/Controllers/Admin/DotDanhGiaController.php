@@ -8,6 +8,7 @@ use App\Models\DotDanhGia;
 use App\Models\HocKy;
 use App\Models\NamHoc;
 use App\Models\PhieuDanhGia;
+use App\Services\AuditLogger;
 use App\Services\DotDanhGiaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -19,9 +20,9 @@ class DotDanhGiaController extends Controller
 {
     public function index(DotDanhGiaService $service)
     {
-        $service->syncAll();
         $dots = DotDanhGia::query()
             ->with(['namHoc', 'hocKy', 'creator'])
+            ->withCount('phieuDanhGias')
             ->latest('id')
             ->paginate(12);
 
@@ -30,9 +31,19 @@ class DotDanhGiaController extends Controller
 
     public function create()
     {
+        $options = $this->formOptions();
+        $defaultNamHoc = $options['namHocs']->firstWhere('is_active', true) ?? $options['namHocs']->first();
+        $defaultHocKy = $options['hocKys']->first(
+            fn (HocKy $hocKy) => $hocKy->nam_hoc_id === $defaultNamHoc?->id && $hocKy->is_active
+        ) ?? $options['hocKys']->firstWhere('nam_hoc_id', $defaultNamHoc?->id);
+
         return view('admin.dot-danh-gia.form', [
-            'dot' => new DotDanhGia(['trang_thai' => DotDanhGia::STATUS_DRAFT]),
-            ...$this->formOptions(),
+            'dot' => new DotDanhGia([
+                'trang_thai' => DotDanhGia::STATUS_DRAFT,
+                'nam_hoc_id' => $defaultNamHoc?->id,
+                'hoc_ky_id' => $defaultHocKy?->id,
+            ]),
+            ...$options,
         ]);
     }
 
@@ -49,7 +60,7 @@ class DotDanhGiaController extends Controller
 
     public function edit(DotDanhGia $dotDanhGia)
     {
-        abort_if(now()->greaterThanOrEqualTo($dotDanhGia->ngay_bat_dau_sinh_vien), 403);
+        abort_if($dotDanhGia->effectiveStatus() === DotDanhGia::STATUS_PUBLISHED, 403, 'Không thể sửa đợt đã công bố.');
 
         return view('admin.dot-danh-gia.form', [
             'dot' => $dotDanhGia,
@@ -59,7 +70,7 @@ class DotDanhGiaController extends Controller
 
     public function update(Request $request, DotDanhGia $dotDanhGia)
     {
-        abort_if(now()->greaterThanOrEqualTo($dotDanhGia->ngay_bat_dau_sinh_vien), 403);
+        abort_if($dotDanhGia->effectiveStatus() === DotDanhGia::STATUS_PUBLISHED, 403, 'Không thể sửa đợt đã công bố.');
 
         $dotDanhGia->update([
             ...$this->validated($request),
@@ -71,8 +82,8 @@ class DotDanhGiaController extends Controller
 
     public function destroy(DotDanhGia $dotDanhGia)
     {
-        if ($dotDanhGia->effectiveStatus() !== DotDanhGia::STATUS_DRAFT) {
-            throw ValidationException::withMessages(['dot_danh_gia' => 'Chỉ có thể xóa đợt nháp.']);
+        if ($dotDanhGia->effectiveStatus() === DotDanhGia::STATUS_PUBLISHED) {
+            throw ValidationException::withMessages(['dot_danh_gia' => 'Không thể xóa đợt đã công bố.']);
         }
 
         if ($dotDanhGia->phieuDanhGias()->exists()) {
@@ -121,6 +132,7 @@ class DotDanhGiaController extends Controller
     public function exportExcel(DotDanhGia $dotDanhGia, DotDanhGiaService $service)
     {
         abort_unless($service->getPeriodForViewingResult($dotDanhGia), 404);
+        app(AuditLogger::class)->write('report.exported', $dotDanhGia, ['format' => 'xlsx']);
 
         return Excel::download(new DiemRenLuyenExport($dotDanhGia), "ket-qua-dot-{$dotDanhGia->id}.xlsx");
     }

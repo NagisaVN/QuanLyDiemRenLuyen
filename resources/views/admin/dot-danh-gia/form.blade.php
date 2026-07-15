@@ -41,9 +41,9 @@
         <div class="col-md-6">
             <label class="form-label">Học kỳ <span class="text-danger">*</span></label>
             <select class="form-select @error('hoc_ky_id') is-invalid @enderror" name="hoc_ky_id" required>
-                <option value="">Chọn học kỳ</option>
+                <option value="">Chọn năm học trước</option>
                 @foreach ($hocKys as $hocKy)
-                    <option value="{{ $hocKy->id }}" data-nam-hoc-id="{{ $hocKy->nam_hoc_id }}" @selected((int) old('hoc_ky_id', $dot->hoc_ky_id) === $hocKy->id)>
+                    <option value="{{ $hocKy->id }}" data-nam-hoc-id="{{ $hocKy->nam_hoc_id }}" data-active="{{ $hocKy->is_active ? '1' : '0' }}" @selected((int) old('hoc_ky_id', $dot->hoc_ky_id) === $hocKy->id)>
                         {{ $hocKy->ten_hoc_ky }}
                     </option>
                 @endforeach
@@ -102,6 +102,7 @@
             const filterHocKyOptions = () => {
                 const selectedNamHocId = namHocSelect.value;
                 let currentSelectionVisible = false;
+                const visibleOptions = [];
 
                 Array.from(hocKySelect.options).forEach((option) => {
                     if (!option.value) {
@@ -115,14 +116,24 @@
                     option.hidden = !visible;
                     option.disabled = !visible;
 
+                    if (visible) {
+                        visibleOptions.push(option);
+                    }
+
                     if (option.selected && visible) {
                         currentSelectionVisible = true;
                     }
                 });
 
                 if (!currentSelectionVisible) {
-                    hocKySelect.value = '';
+                    const preferredOption = visibleOptions.find((option) => option.dataset.active === '1') ?? visibleOptions[0];
+                    hocKySelect.value = preferredOption?.value ?? '';
                 }
+
+                hocKySelect.disabled = selectedNamHocId === '' || visibleOptions.length === 0;
+                hocKySelect.options[0].textContent = selectedNamHocId === ''
+                    ? 'Chọn năm học trước'
+                    : (visibleOptions.length === 0 ? 'Năm học chưa có học kỳ' : 'Chọn học kỳ');
             };
 
             namHocSelect.addEventListener('change', filterHocKyOptions);

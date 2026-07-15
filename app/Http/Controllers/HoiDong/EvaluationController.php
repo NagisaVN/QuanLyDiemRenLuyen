@@ -6,6 +6,7 @@ use App\Exports\DiemRenLuyenExport;
 use App\Http\Controllers\Controller;
 use App\Models\HocKy;
 use App\Models\PhieuDanhGia;
+use App\Services\AuditLogger;
 use App\Services\DiemRenLuyenService;
 use App\Services\DotDanhGiaService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -16,7 +17,6 @@ class EvaluationController extends Controller
 {
     public function index(DotDanhGiaService $dotService)
     {
-        $dotService->syncAll();
         $currentDot = $dotService->getCurrentTeacherPeriod();
         $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia'])
             ->when(
@@ -34,7 +34,6 @@ class EvaluationController extends Controller
 
     public function show(PhieuDanhGia $phieu, DiemRenLuyenService $service, DotDanhGiaService $dotService)
     {
-        $dotService->syncPeriod($phieu->loadMissing('dotDanhGia')->dotDanhGia);
         $phieu->load(['sinhVien.lop.khoa', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 'minhChungs.mucTieuChi']);
 
         return view('hoi-dong.evaluations.show', [
@@ -94,6 +93,7 @@ class EvaluationController extends Controller
     public function exportExcel(Request $request)
     {
         $request->validate(['hoc_ky_id' => 'required|exists:hoc_kys,id']);
+        app(AuditLogger::class)->write('report.exported', 'hoc_ky', ['hoc_ky_id' => (int) $request->hoc_ky_id, 'format' => 'xlsx']);
 
         return Excel::download(new DiemRenLuyenExport(null, $request->hoc_ky_id), 'diem-ren-luyen.xlsx');
     }
@@ -101,6 +101,7 @@ class EvaluationController extends Controller
     public function exportPdf(Request $request)
     {
         $request->validate(['hoc_ky_id' => 'required|exists:hoc_kys,id']);
+        app(AuditLogger::class)->write('report.exported', 'hoc_ky', ['hoc_ky_id' => (int) $request->hoc_ky_id, 'format' => 'pdf']);
         $forms = PhieuDanhGia::with(['sinhVien.lop.khoa', 'hocKy.namHoc'])
             ->where('hoc_ky_id', $request->hoc_ky_id)
             ->whereIn('trang_thai', ['approved', 'locked'])

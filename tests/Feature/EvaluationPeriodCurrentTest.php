@@ -8,6 +8,7 @@ use App\Models\DotDanhGia;
 use App\Models\HocKy;
 use App\Models\Khoa;
 use App\Models\Lop;
+use App\Models\MucTieuChi;
 use App\Models\NamHoc;
 use App\Models\PhieuDanhGia;
 use App\Models\SinhVien;
@@ -15,6 +16,7 @@ use App\Models\TieuChi;
 use App\Models\User;
 use App\Services\DiemRenLuyenService;
 use App\Services\DotDanhGiaService;
+use App\Support\DrlRubric;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
@@ -64,7 +66,8 @@ class EvaluationPeriodCurrentTest extends TestCase
         $this->travelTo(Carbon::parse('2026-07-04 10:00:00'));
         $data = $this->baseData();
         $periods = app(DotDanhGiaService::class);
-        $scores = [$data['criterion']->id => 18];
+        DrlRubric::syncIfMissing();
+        $scores = [MucTieuChi::query()->where('loai', 'item')->firstOrFail()->id => 1];
         $diem = app(DiemRenLuyenService::class);
 
         $hk1Dot = $this->createDot($data['hk1'], $data['admin'], DotDanhGia::STATUS_OPEN, [
@@ -211,7 +214,7 @@ class EvaluationPeriodCurrentTest extends TestCase
             ->assertOk();
 
         Excel::assertDownloaded("ket-qua-dot-{$dot1->id}.xlsx", function (DiemRenLuyenExport $export) use ($form1) {
-            $rows = $export->collection();
+            $rows = $export->query()->get();
 
             return $rows->count() === 1
                 && $rows->first()->phieu_danh_gia_id === $form1->id;

@@ -22,6 +22,7 @@ class AttendanceController extends Controller
         ]);
 
         $activity = HoatDong::findOrFail($data['activityId']);
+        $this->authorizeActivity($request, $activity);
         $session = $service->createAttendanceSession(
             $activity,
             $request->user(),
@@ -83,11 +84,17 @@ class AttendanceController extends Controller
 
     public function approve(Request $request, HoatDong $hoatDong, HoatDongService $service): JsonResponse
     {
+        $this->authorizeActivity($request, $hoatDong);
         $count = $service->approveAttendance($hoatDong, $request->user());
 
         return response()->json([
             'message' => "Đã duyệt cộng điểm cho {$count} sinh viên.",
             'approved_count' => $count,
         ]);
+    }
+
+    private function authorizeActivity(Request $request, HoatDong $hoatDong): void
+    {
+        abort_unless($request->user()->can('manage all activities') || $hoatDong->user_id === $request->user()->id, 403);
     }
 }

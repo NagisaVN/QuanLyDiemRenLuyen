@@ -8,7 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('backup:database')->dailyAt('01:00');
+Schedule::command('backup:database')->dailyAt('01:00')->withoutOverlapping()->onOneServer();
 Schedule::command('evaluations:sync-statuses')
     ->everyMinute()
     ->withoutOverlapping()

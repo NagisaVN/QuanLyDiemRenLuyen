@@ -53,7 +53,12 @@
                         @endforeach
                         <td class="text-end">
                             <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.crud.show', [$module, $item->id]) }}"><i class="bi bi-eye"></i></a>
-                            @if (count($config['fields']))
+                            @if ($module === 'users' && method_exists($item, 'trashed') && $item->trashed())
+                                <form method="POST" action="{{ route('admin.users.restore', $item->id) }}" class="d-inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-success" type="submit" title="Khôi phục"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                </form>
+                            @elseif (count($config['fields']))
                                 <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.crud.edit', [$module, $item->id]) }}"><i class="bi bi-pencil"></i></a>
                                 <form method="POST" action="{{ route('admin.crud.destroy', [$module, $item->id]) }}" class="d-inline" onsubmit="return confirm('Xóa dữ liệu này?')">
                                     @csrf

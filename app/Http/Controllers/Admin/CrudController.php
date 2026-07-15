@@ -16,6 +16,7 @@ use App\Models\SystemLog;
 use App\Models\ThongBao;
 use App\Models\TieuChi;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,19 +24,26 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class CrudController extends Controller
 {
-    public function index(string $module)
+    public function index(Request $request, string $module)
     {
+        $this->authorizeModule($request, $module);
         $config = $this->config($module);
-        $items = $config['model']::query()->latest('id')->paginate(15);
+        $query = $config['model']::query();
+        if ($config['model'] === User::class) {
+            $query->withTrashed()->with('roles');
+        }
+        $items = $query->latest('id')->paginate(15);
 
         return view('admin.crud.index', compact('config', 'items', 'module'));
     }
 
-    public function create(string $module)
+    public function create(Request $request, string $module)
     {
+        $this->authorizeModule($request, $module, true);
         $config = $this->config($module);
         $item = new $config['model'];
 
@@ -49,6 +57,7 @@ class CrudController extends Controller
 
     public function store(Request $request, string $module)
     {
+        $this->authorizeModule($request, $module, true);
         $config = $this->config($module);
         $data = $this->validated($request, $config);
         $roleNames = $this->selectedRoleNames($request);
@@ -69,19 +78,27 @@ class CrudController extends Controller
             return $item;
         });
 
+        app(AuditLogger::class)->write('admin.created', $item, ['module' => $module]);
+
         return redirect()->route('admin.crud.index', $module)->with('status', 'Đã tạo dữ liệu.');
     }
 
-    public function show(string $module, int $id)
+    public function show(Request $request, string $module, int $id)
     {
+        $this->authorizeModule($request, $module);
         $config = $this->config($module);
-        $item = $config['model']::findOrFail($id);
+        $query = $config['model']::query();
+        if ($config['model'] === User::class) {
+            $query->withTrashed();
+        }
+        $item = $query->findOrFail($id);
 
         return view('admin.crud.show', compact('config', 'item', 'module'));
     }
 
-    public function edit(string $module, int $id)
+    public function edit(Request $request, string $module, int $id)
     {
+        $this->authorizeModule($request, $module, true);
         $config = $this->config($module);
         $item = $config['model']::findOrFail($id);
 
@@ -95,6 +112,7 @@ class CrudController extends Controller
 
     public function update(Request $request, string $module, int $id)
     {
+        $this->authorizeModule($request, $module, true);
         $config = $this->config($module);
         $item = $config['model']::findOrFail($id);
         $data = $this->validated($request, $config, $id);
@@ -118,22 +136,48 @@ class CrudController extends Controller
             $this->syncExtras($request, $item, $roleNames, $studentData);
         });
 
+        app(AuditLogger::class)->write('admin.updated', $item, ['module' => $module, 'changes' => array_keys($item->getChanges())]);
+
         return redirect()->route('admin.crud.index', $module)->with('status', 'Đã cập nhật dữ liệu.');
     }
 
-    public function destroy(string $module, int $id)
+    public function destroy(Request $request, string $module, int $id)
     {
+        $this->authorizeModule($request, $module, true);
         $config = $this->config($module);
-        $config['model']::findOrFail($id)->delete();
+        $item = $config['model']::findOrFail($id);
+
+        if ($item instanceof User && $item->can('manage roles') && User::permission('manage roles')->count() <= 1) {
+            return back()->withErrors(['user' => 'Không thể xóa quản trị viên cuối cùng.']);
+        }
+        if ($item instanceof Role && $item->users()->exists()) {
+            return back()->withErrors(['role' => 'Không thể xóa vai trò đang được gán cho người dùng.']);
+        }
+        if ($item instanceof Permission && ($item->roles()->exists() || $item->users()->exists())) {
+            return back()->withErrors(['permission' => 'Không thể xóa quyền đang được sử dụng.']);
+        }
+
+        $item->delete();
+        app(AuditLogger::class)->write('admin.deleted', $item, ['module' => $module]);
 
         return back()->with('status', 'Đã xóa dữ liệu.');
+    }
+
+    public function restoreUser(Request $request, int $id)
+    {
+        $this->authorizeModule($request, 'users', true);
+        $user = User::withTrashed()->findOrFail($id);
+        $user->restore();
+        app(AuditLogger::class)->write('admin.restored', $user, ['module' => 'users']);
+
+        return back()->with('status', 'Đã khôi phục tài khoản.');
     }
 
     private function validated(Request $request, array $config, ?int $id = null): array
     {
         $rules = [];
         foreach ($config['fields'] as $name => $field) {
-            if (($field['type'] ?? 'text') === 'display' || $name === 'roles') {
+            if (($field['type'] ?? 'text') === 'display' || in_array($name, ['roles', 'permissions'], true)) {
                 continue;
             }
             $rules[$name] = $field['rules'] ?? ['nullable'];
@@ -142,6 +186,12 @@ class CrudController extends Controller
         if (($config['model'] ?? null) === User::class) {
             $rules['email'] = ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)];
             $rules['ma_dang_nhap'] = ['nullable', 'string', 'max:50', Rule::unique('users', 'ma_dang_nhap')->ignore($id)];
+        }
+        if (($config['model'] ?? null) === Role::class) {
+            $rules['name'] = ['required', 'string', 'max:125', Rule::unique('roles', 'name')->where('guard_name', 'web')->ignore($id)];
+        }
+        if (($config['model'] ?? null) === Permission::class) {
+            $rules['name'] = ['required', 'string', 'max:125', Rule::unique('permissions', 'name')->where('guard_name', 'web')->ignore($id)];
         }
 
         $data = $request->validate($rules);
@@ -223,6 +273,12 @@ class CrudController extends Controller
         if ($item instanceof HoatDong) {
             $item->khoas()->sync($request->input('khoa_ids', []));
         }
+
+        if ($item instanceof Role) {
+            $permissions = Permission::query()->whereIn('id', $request->input('permissions', []))->pluck('name');
+            $item->syncPermissions($permissions);
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        }
     }
 
     private function config(string $module): array
@@ -237,8 +293,9 @@ class CrudController extends Controller
                 'roles' => ['label' => 'Vai trò', 'type' => 'roles'],
             ]],
             'roles' => ['title' => 'Vai trò', 'model' => Role::class, 'columns' => ['name', 'guard_name'], 'fields' => [
-                'name' => ['label' => 'Tên vai trò', 'type' => 'select', 'options' => 'role_codes', 'rules' => ['required', Rule::in(array_keys(config('ui.roles', [])))]],
+                'name' => ['label' => 'Tên vai trò', 'rules' => ['required', 'string', 'max:125']],
                 'guard_name' => ['label' => 'Cổng xác thực', 'type' => 'select', 'options' => 'guards', 'rules' => ['required', Rule::in(['web'])]],
+                'permissions' => ['label' => 'Quyền của vai trò', 'type' => 'permissions'],
             ]],
             'permissions' => ['title' => 'Phân quyền', 'model' => Permission::class, 'columns' => ['name', 'guard_name'], 'fields' => [
                 'name' => ['label' => 'Tên quyền', 'rules' => ['required', 'string', 'max:255']],
@@ -348,6 +405,20 @@ class CrudController extends Controller
         return $config;
     }
 
+    private function authorizeModule(Request $request, string $module, bool $write = false): void
+    {
+        $permission = match ($module) {
+            'users' => 'manage users',
+            'roles', 'permissions' => 'manage roles',
+            'logs' => 'view audit logs',
+            'backups' => 'manage backups',
+            default => 'manage master data',
+        };
+
+        abort_unless($request->user()->can($permission), 403);
+        abort_if($write && in_array($module, ['logs', 'backups'], true), 403, 'Dữ liệu này chỉ được phép đọc.');
+    }
+
     private function basicFields(string $code, string $name): array
     {
         return [
@@ -376,6 +447,7 @@ class CrudController extends Controller
             'role_codes' => collect(config('ui.roles', [])),
             'role_names' => Role::pluck('name', 'id'),
             'roles' => Role::pluck('name', 'id')->map(fn (string $name) => config("ui.roles.$name", $name)),
+            'permissions' => Permission::orderBy('name')->pluck('name', 'id')->map(fn (string $name) => config("ui.permissions.$name", $name)),
         ];
     }
 }

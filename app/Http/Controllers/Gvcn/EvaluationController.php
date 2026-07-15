@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DotDanhGia;
 use App\Models\MinhChung;
 use App\Models\PhieuDanhGia;
+use App\Services\AuditLogger;
 use App\Services\DiemRenLuyenService;
 use App\Services\DotDanhGiaService;
 use Illuminate\Http\Request;
@@ -14,7 +15,6 @@ class EvaluationController extends Controller
 {
     public function index(Request $request)
     {
-        app(DotDanhGiaService::class)->syncAll();
         $classIds = $request->user()->lopPhuTrachs()->pluck('id');
         $currentDot = app(DotDanhGiaService::class)->getCurrentTeacherPeriod()
             ?? DotDanhGia::whereIn('trang_thai', ['open', 'closed', 'published'])->latest('id')->first();
@@ -36,7 +36,6 @@ class EvaluationController extends Controller
 
     public function show(Request $request, PhieuDanhGia $phieu, DotDanhGiaService $dotService)
     {
-        $dotService->syncPeriod($phieu->loadMissing('dotDanhGia')->dotDanhGia);
         $this->authorizeClass($request, $phieu);
         $phieu->load(['sinhVien.lop', 'hocKy', 'dotDanhGia', 'chiTietDanhGias.tieuChi', 'chiTietDanhGias.mucTieuChi', 'minhChungs.mucTieuChi']);
 
@@ -96,6 +95,7 @@ class EvaluationController extends Controller
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
+        app(AuditLogger::class)->write('evidence.reviewed', $minhChung, ['status' => $data['trang_thai']]);
 
         return back()->with('status', 'Đã cập nhật trạng thái minh chứng.');
     }

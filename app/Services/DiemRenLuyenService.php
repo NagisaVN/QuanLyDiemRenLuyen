@@ -15,6 +15,7 @@ use App\Models\TieuChi;
 use App\Models\User;
 use App\Support\DrlRubric;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class DiemRenLuyenService
@@ -163,6 +164,10 @@ class DiemRenLuyenService
 
     public function saveStudentScores(PhieuDanhGia $phieu, array $scores, ?User $user, ?string $note = null, array $itemNotes = []): PhieuDanhGia
     {
+        if (DB::transactionLevel() === 0) {
+            return DB::transaction(fn () => $this->saveStudentScores(PhieuDanhGia::query()->lockForUpdate()->findOrFail($phieu->id), $scores, $user, $note, $itemNotes));
+        }
+        $this->assertValidScoreKeys($scores);
         if (! $this->canStudentEdit($phieu)) {
             throw ValidationException::withMessages(['phieu' => 'Phiếu đã được duyệt, quá hạn hoặc đã khóa.']);
         }
@@ -193,12 +198,16 @@ class DiemRenLuyenService
             'xep_loai' => $this->xepLoai($total),
             'nhan_xet_sinh_vien' => $note,
         ]);
+        app(AuditLogger::class)->write('evaluation.student_scores_saved', $phieu, ['total' => $total], actorId: $user?->id);
 
         return $this->loadEvaluation($phieu->refresh());
     }
 
     public function submit(PhieuDanhGia $phieu): PhieuDanhGia
     {
+        if (DB::transactionLevel() === 0) {
+            return DB::transaction(fn () => $this->submit(PhieuDanhGia::query()->lockForUpdate()->findOrFail($phieu->id)));
+        }
         if (! $phieu->canStudentEditStatus() || ! $this->canStudentEdit($phieu)) {
             throw ValidationException::withMessages(['phieu' => 'Phiếu không còn được nộp hoặc chỉnh sửa.']);
         }
@@ -207,6 +216,7 @@ class DiemRenLuyenService
             'trang_thai' => PhieuDanhGia::STATUS_SUBMITTED,
             'submitted_at' => now(),
         ]);
+        app(AuditLogger::class)->write('evaluation.submitted', $phieu, actorId: $phieu->sinhVien?->user_id);
 
         $phieu = $this->loadEvaluation($phieu->refresh());
         app(EvaluationStatusBroadcaster::class)->submitted($phieu);
@@ -216,6 +226,10 @@ class DiemRenLuyenService
 
     public function saveReviewerScores(PhieuDanhGia $phieu, array $scores, User $user, string $stage, ?string $note = null, array $itemNotes = []): PhieuDanhGia
     {
+        if (DB::transactionLevel() === 0) {
+            return DB::transaction(fn () => $this->saveReviewerScores(PhieuDanhGia::query()->lockForUpdate()->findOrFail($phieu->id), $scores, $user, $stage, $note, $itemNotes));
+        }
+        $this->assertValidScoreKeys($scores);
         $phieu->loadMissing('dotDanhGia');
 
         if (! in_array($stage, ['gvcn', 'hoi_dong'], true)) {
@@ -278,12 +292,16 @@ class DiemRenLuyenService
         }
 
         $phieu->update($updates);
+        app(AuditLogger::class)->write("evaluation.{$stage}_scores_saved", $phieu, ['total' => $total], actorId: $user->id);
 
         return $this->loadEvaluation($phieu->refresh());
     }
 
     public function confirmGvcn(PhieuDanhGia $phieu, User $user, ?string $note = null): PhieuDanhGia
     {
+        if (DB::transactionLevel() === 0) {
+            return DB::transaction(fn () => $this->confirmGvcn(PhieuDanhGia::query()->lockForUpdate()->findOrFail($phieu->id), $user, $note));
+        }
         $phieu->loadMissing('dotDanhGia');
 
         if (! $phieu->canGvcnReviewStatus()) {
@@ -316,6 +334,7 @@ class DiemRenLuyenService
             'reviewed_at' => now(),
             'xep_loai' => $this->xepLoai($score),
         ]);
+        app(AuditLogger::class)->write('evaluation.reviewed', $phieu, ['total' => $score], actorId: $user->id);
 
         $phieu = $this->loadEvaluation($phieu->refresh());
         app(EvaluationStatusBroadcaster::class)->reviewedByGvcn($phieu);
@@ -325,6 +344,9 @@ class DiemRenLuyenService
 
     public function approveFinal(PhieuDanhGia $phieu, User $user, ?string $note = null): PhieuDanhGia
     {
+        if (DB::transactionLevel() === 0) {
+            return DB::transaction(fn () => $this->approveFinal(PhieuDanhGia::query()->lockForUpdate()->findOrFail($phieu->id), $user, $note));
+        }
         $phieu->loadMissing('dotDanhGia');
 
         if (! $phieu->canFinalReviewStatus()) {
@@ -377,6 +399,7 @@ class DiemRenLuyenService
                 'cong_bo_at' => $phieu->dotDanhGia?->ngay_cong_bo ?? $phieu->hocKy?->ngay_cong_bo,
             ],
         );
+        app(AuditLogger::class)->write('evaluation.approved', $phieu, ['rubric_score' => $rubricScore, 'activity_score' => $activityScore, 'final_score' => $finalScore], actorId: $user->id);
 
         $phieu = $this->loadEvaluation($phieu->refresh());
         app(EvaluationStatusBroadcaster::class)->approved($phieu);
@@ -386,6 +409,12 @@ class DiemRenLuyenService
 
     public function lock(PhieuDanhGia $phieu, User $user): PhieuDanhGia
     {
+        if (DB::transactionLevel() === 0) {
+            return DB::transaction(fn () => $this->lock(PhieuDanhGia::query()->lockForUpdate()->findOrFail($phieu->id), $user));
+        }
+        if (! in_array($phieu->trang_thai, [PhieuDanhGia::STATUS_APPROVED, PhieuDanhGia::STATUS_REVIEWED], true)) {
+            throw ValidationException::withMessages(['phieu' => 'Chỉ có thể khóa phiếu đã được duyệt.']);
+        }
         $phieu->update([
             'trang_thai' => PhieuDanhGia::STATUS_LOCKED,
             'locked_by' => $user->id,
@@ -393,11 +422,22 @@ class DiemRenLuyenService
         ]);
 
         $phieu->diemRenLuyen?->update(['trang_thai' => 'locked']);
+        app(AuditLogger::class)->write('evaluation.locked', $phieu, actorId: $user->id);
 
         $phieu = $this->loadEvaluation($phieu->refresh());
         app(EvaluationStatusBroadcaster::class)->locked($phieu);
 
         return $phieu;
+    }
+
+    private function assertValidScoreKeys(array $scores): void
+    {
+        $validIds = $this->activeRubricItems()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $submittedIds = array_map('strval', array_keys($scores));
+
+        if (array_diff($submittedIds, $validIds)) {
+            throw ValidationException::withMessages(['scores' => 'Dữ liệu điểm chứa tiêu chí không thuộc biểu mẫu hiện hành.']);
+        }
     }
 
     public function activityScore(SinhVien $sinhVien, HocKy $hocKy): int

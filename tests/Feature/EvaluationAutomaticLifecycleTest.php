@@ -138,10 +138,14 @@ class EvaluationAutomaticLifecycleTest extends TestCase
     {
         $data = $this->baseData();
 
-        $this->actingAs($data['admin'])
+        $createResponse = $this->actingAs($data['admin'])
             ->get(route('admin.dot-danh-gia.create'))
             ->assertOk()
             ->assertDontSee('name="trang_thai"', false);
+
+        $this->assertSame($data['namHoc']->id, $createResponse->viewData('dot')->nam_hoc_id);
+        $this->assertSame($data['hocKy']->id, $createResponse->viewData('dot')->hoc_ky_id);
+        $createResponse->assertSee('data-active="1"', false);
 
         $this->actingAs($data['admin'])
             ->post(route('admin.dot-danh-gia.store'), [

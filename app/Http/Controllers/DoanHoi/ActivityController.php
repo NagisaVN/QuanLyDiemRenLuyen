@@ -8,6 +8,7 @@ use App\Models\HoatDong;
 use App\Models\Khoa;
 use App\Models\SinhVien;
 use App\Models\TieuChi;
+use App\Services\AuditLogger;
 use App\Services\HoatDongService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -19,9 +20,11 @@ class ActivityController extends Controller
         'lng' => 106.6345254,
     ];
 
-    public function index()
+    public function index(Request $request)
     {
-        $activities = HoatDong::withCount(['dangKyHoatDongs', 'diemDanhHoatDongs'])->latest()->paginate(15);
+        $activities = HoatDong::query()
+            ->when(! $request->user()->can('manage all activities'), fn ($query) => $query->where('user_id', $request->user()->id))
+            ->withCount(['dangKyHoatDongs', 'diemDanhHoatDongs'])->latest()->paginate(15);
 
         return view('doan-hoi.activities.index', compact('activities'));
     }
@@ -36,33 +39,41 @@ class ActivityController extends Controller
         $activity = HoatDong::create($this->validated($request) + ['user_id' => $request->user()->id]);
         $activity->khoas()->sync($request->input('khoa_ids', []));
         $service->ensureQrToken($activity);
+        app(AuditLogger::class)->write('activity.created', $activity);
 
         return redirect()->route('doan-hoi.activities.index')->with('status', 'Đã tạo hoạt động.');
     }
 
-    public function edit(HoatDong $hoatDong)
+    public function edit(Request $request, HoatDong $hoatDong)
     {
+        $this->authorizeActivity($request, $hoatDong);
+
         return view('doan-hoi.activities.form', $this->formData($hoatDong));
     }
 
     public function update(Request $request, HoatDong $hoatDong, HoatDongService $service)
     {
+        $this->authorizeActivity($request, $hoatDong);
         $hoatDong->update($this->validated($request));
         $hoatDong->khoas()->sync($request->input('khoa_ids', []));
         $service->ensureQrToken($hoatDong);
+        app(AuditLogger::class)->write('activity.updated', $hoatDong);
 
         return redirect()->route('doan-hoi.activities.index')->with('status', 'Đã cập nhật hoạt động.');
     }
 
-    public function destroy(HoatDong $hoatDong)
+    public function destroy(Request $request, HoatDong $hoatDong)
     {
+        $this->authorizeActivity($request, $hoatDong);
         $hoatDong->delete();
+        app(AuditLogger::class)->write('activity.deleted', $hoatDong);
 
         return back()->with('status', 'Đã xóa hoạt động.');
     }
 
-    public function registrations(HoatDong $hoatDong)
+    public function registrations(Request $request, HoatDong $hoatDong)
     {
+        $this->authorizeActivity($request, $hoatDong);
         $registrations = $hoatDong->dangKyHoatDongs()->with('sinhVien.lop')->paginate(20);
 
         return view('doan-hoi.activities.registrations', compact('hoatDong', 'registrations'));
@@ -70,14 +81,17 @@ class ActivityController extends Controller
 
     public function approve(Request $request, DangKyHoatDong $registration, HoatDongService $service)
     {
+        $this->authorizeActivity($request, $registration->hoatDong);
         $data = $request->validate(['trang_thai' => ['required', 'in:approved,rejected,cancelled']]);
         $service->approve($registration, $request->user(), $data['trang_thai']);
+        app(AuditLogger::class)->write('activity.registration_reviewed', $registration, ['status' => $data['trang_thai']]);
 
         return back()->with('status', 'Đã cập nhật đăng ký.');
     }
 
     public function attendance(Request $request, HoatDong $hoatDong, HoatDongService $service)
     {
+        $this->authorizeActivity($request, $hoatDong);
         $data = $request->validate(['ma_sinh_vien' => ['required', 'exists:sinh_viens,ma_sinh_vien']]);
         $sinhVien = SinhVien::where('ma_sinh_vien', $data['ma_sinh_vien'])->firstOrFail();
         $service->checkIn($hoatDong, $sinhVien, $request->user(), $request, 'manual');
@@ -85,8 +99,9 @@ class ActivityController extends Controller
         return back()->with('status', 'Đã điểm danh sinh viên.');
     }
 
-    public function qr(HoatDong $hoatDong, HoatDongService $service)
+    public function qr(Request $request, HoatDong $hoatDong, HoatDongService $service)
     {
+        $this->authorizeActivity($request, $hoatDong);
         $hoatDong->load([
             'attendanceSessions' => fn ($query) => $query->latest(),
             'diemDanhHoatDongs.sinhVien.lop',
@@ -101,6 +116,7 @@ class ActivityController extends Controller
 
     public function manualAdjust(Request $request, HoatDong $hoatDong, HoatDongService $service)
     {
+        $this->authorizeActivity($request, $hoatDong);
         $data = $request->validate([
             'ma_sinh_vien' => ['required', 'exists:sinh_viens,ma_sinh_vien'],
             'points' => ['required', 'integer', 'between:-20,20'],
@@ -111,6 +127,11 @@ class ActivityController extends Controller
         $service->manualAdjust($hoatDong, $sinhVien, $request->user(), (int) $data['points'], $data['reason']);
 
         return back()->with('status', 'Đã ghi nhận cộng/trừ điểm thủ công.');
+    }
+
+    private function authorizeActivity(Request $request, HoatDong $hoatDong): void
+    {
+        abort_unless($request->user()->can('manage all activities') || $hoatDong->user_id === $request->user()->id, 403);
     }
 
     private function validated(Request $request): array

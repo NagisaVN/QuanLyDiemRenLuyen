@@ -6,19 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\MinhChung;
 use App\Models\MucTieuChi;
 use App\Models\PhieuDanhGia;
+use App\Models\TieuChi;
+use App\Services\AuditLogger;
 use App\Services\DiemRenLuyenService;
 use App\Services\DotDanhGiaService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class EvaluationController extends Controller
 {
     public function index(Request $request, DiemRenLuyenService $service)
     {
-        app(DotDanhGiaService::class)->syncAll();
-
         try {
             $phieu = $service->ensurePhieu($request->user()->sinhVien);
         } catch (ValidationException $exception) {
@@ -95,8 +96,18 @@ class EvaluationController extends Controller
         ]);
 
         $mucTieuChi = isset($data['muc_tieu_chi_id'])
-            ? MucTieuChi::query()->find($data['muc_tieu_chi_id'])
+            ? MucTieuChi::query()->where('loai', 'item')->where('is_active', true)->find($data['muc_tieu_chi_id'])
             : null;
+
+        if (isset($data['muc_tieu_chi_id']) && ! $mucTieuChi) {
+            throw ValidationException::withMessages(['muc_tieu_chi_id' => 'Mục tiêu chí không thuộc biểu mẫu hiện hành.']);
+        }
+        if (isset($data['tieu_chi_id']) && ! TieuChi::query()->where('is_active', true)->whereKey($data['tieu_chi_id'])->exists()) {
+            throw ValidationException::withMessages(['tieu_chi_id' => 'Tiêu chí không thuộc biểu mẫu hiện hành.']);
+        }
+        if ($mucTieuChi && isset($data['tieu_chi_id']) && (int) $data['tieu_chi_id'] !== (int) $mucTieuChi->tieu_chi_id) {
+            throw ValidationException::withMessages(['tieu_chi_id' => 'Tiêu chí và mục tiêu chí không khớp nhau.']);
+        }
 
         if ($phieu->minhChungs()->count() + count($request->file('files', [])) > 5) {
             throw ValidationException::withMessages(['files' => 'Mỗi phiếu chỉ được tải tối đa 5 file.']);
@@ -110,13 +121,15 @@ class EvaluationController extends Controller
                 'tieu_chi_id' => $mucTieuChi?->tieu_chi_id ?? ($data['tieu_chi_id'] ?? null),
                 'muc_tieu_chi_id' => $mucTieuChi?->id,
                 'uploaded_by' => $request->user()->id,
-                'ten_file' => $file->getClientOriginalName(),
+                'ten_file' => Str::limit(basename($file->getClientOriginalName()), 240, ''),
                 'duong_dan' => $path,
                 'loai_file' => $file->getClientMimeType(),
                 'kich_thuoc' => $file->getSize(),
                 'mo_ta' => $data['mo_ta'] ?? null,
             ]);
         }
+
+        app(AuditLogger::class)->write('evidence.uploaded', $phieu, ['file_count' => count($request->file('files', []))]);
 
         return back()->with('status', 'Đã tải minh chứng.');
     }
@@ -125,9 +138,13 @@ class EvaluationController extends Controller
     {
         $user = $request->user();
         $owner = $user->sinhVien?->id === $minhChung->sinh_vien_id;
-        $gvcn = $user->hasRole('gvcn') && $user->lopPhuTrachs()->whereKey($minhChung->sinhVien->lop_id)->exists();
+        $gvcn = $user->can('review class forms') && $user->lopPhuTrachs()->whereKey($minhChung->sinhVien->lop_id)->exists();
 
-        abort_unless($owner || $gvcn || $user->hasAnyRole(['admin', 'hoi_dong_khoa']), 403);
+        $reviewer = $user->can('approve final scores') || $user->can('manage master data');
+
+        abort_unless($owner || $gvcn || $reviewer, 403);
+
+        app(AuditLogger::class)->write('evidence.downloaded', $minhChung);
 
         return Storage::download($minhChung->duong_dan, $minhChung->ten_file);
     }

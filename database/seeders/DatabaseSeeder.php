@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         $roles = ['admin', 'sinh_vien', 'gvcn', 'can_bo_doan_hoi', 'hoi_dong_khoa'];
         $permissions = [
             'manage users', 'manage roles', 'manage master data', 'manage activities',
+            'manage all activities', 'view audit logs', 'manage backups',
             'self evaluate', 'review class forms', 'approve final scores', 'export reports',
             'manage_dot_danh_gia', 'open_dot_danh_gia', 'close_dot_danh_gia', 'publish_dot_danh_gia',
         ];

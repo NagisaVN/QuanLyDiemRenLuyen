@@ -8,8 +8,8 @@ use App\Models\HoatDong;
 use App\Models\PhieuDanhGia;
 use App\Models\SinhVien;
 use App\Services\DiemRenLuyenService;
+use App\Services\DotDanhGiaService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class DashboardController extends Controller
 {
@@ -27,11 +27,12 @@ class DashboardController extends Controller
         $user = $request->user();
 
         return match (true) {
-            $user->hasRole('admin') => redirect()->route('admin.dashboard'),
-            $user->hasRole('gvcn') => redirect()->route('gvcn.dashboard'),
-            $user->hasRole('can_bo_doan_hoi') => redirect()->route('doan-hoi.dashboard'),
-            $user->hasRole('hoi_dong_khoa') => redirect()->route('hoi-dong.dashboard'),
-            default => redirect()->route('sinh-vien.dashboard'),
+            $user->canAny(['manage users', 'manage roles', 'manage master data', 'view audit logs', 'manage backups']) => redirect()->route('admin.dashboard'),
+            $user->can('review class forms') => redirect()->route('gvcn.dashboard'),
+            $user->can('manage activities') => redirect()->route('doan-hoi.dashboard'),
+            $user->can('approve final scores') => redirect()->route('hoi-dong.dashboard'),
+            $user->can('self evaluate') => redirect()->route('sinh-vien.dashboard'),
+            default => abort(403, 'Tài khoản chưa được cấp quyền truy cập.'),
         };
     }
 
@@ -47,11 +48,11 @@ class DashboardController extends Controller
         $evaluationMessage = null;
 
         if ($sinhVien) {
-            try {
-                $phieu = $service->ensurePhieu($sinhVien);
-            } catch (ValidationException $exception) {
-                $evaluationMessage = collect($exception->errors())->flatten()->first();
-            }
+            $currentPeriod = app(DotDanhGiaService::class)->getCurrentStudentPeriod();
+            $phieu = $currentPeriod
+                ? PhieuDanhGia::query()->where('sinh_vien_id', $sinhVien->id)->where('dot_danh_gia_id', $currentPeriod->id)->first()
+                : null;
+            $evaluationMessage = $currentPeriod ? null : 'Hiện chưa có đợt đánh giá đang mở.';
         }
 
         return view('dashboards.sinh-vien', [
@@ -75,11 +76,15 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function doanHoi()
+    public function doanHoi(Request $request)
     {
         return view('dashboards.doan-hoi', [
             ...$this->stats(),
-            'pendingRegistrations' => DangKyHoatDong::where('trang_thai', 'pending')->count(),
+            'pendingRegistrations' => DangKyHoatDong::whereHas('hoatDong', function ($query) use ($request): void {
+                if (! $request->user()->can('manage all activities')) {
+                    $query->where('user_id', $request->user()->id);
+                }
+            })->where('trang_thai', 'pending')->count(),
         ]);
     }
 

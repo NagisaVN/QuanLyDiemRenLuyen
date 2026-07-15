@@ -12,9 +12,7 @@ class CheckStudentEvaluationPeriod
     public function handle(Request $request, Closure $next): Response
     {
         $service = app(DotDanhGiaService::class);
-        $service->lockExpiredForms();
-
-        if (!$request->isMethodSafe() && !$service->getCurrentStudentPeriod()) {
+        if (! $request->isMethodSafe() && ! $service->getCurrentStudentPeriod()) {
             return back()->withErrors(['dot_danh_gia' => 'Hiện chưa có đợt đánh giá đang mở.']);
         }
 

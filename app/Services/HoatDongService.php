@@ -20,9 +20,7 @@ class HoatDongService
 {
     private const MAX_GPS_ACCURACY_METERS = 100;
 
-    public function __construct(private readonly DiemRenLuyenService $diemService)
-    {
-    }
+    public function __construct(private readonly DiemRenLuyenService $diemService) {}
 
     public function ensureQrToken(HoatDong $hoatDong): HoatDong
     {
@@ -35,22 +33,26 @@ class HoatDongService
 
     public function register(HoatDong $hoatDong, SinhVien $sinhVien): DangKyHoatDong
     {
-        if ($hoatDong->trang_thai !== 'open') {
-            throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động chưa mở đăng ký.']);
-        }
+        return DB::transaction(function () use ($hoatDong, $sinhVien): DangKyHoatDong {
+            $hoatDong = HoatDong::query()->lockForUpdate()->findOrFail($hoatDong->id);
 
-        if ($hoatDong->khoas()->exists() && ! $hoatDong->khoas()->whereKey($sinhVien->lop->khoa_id)->exists()) {
-            throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động không áp dụng cho khoa của sinh viên.']);
-        }
+            if ($hoatDong->trang_thai !== 'open') {
+                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động chưa mở đăng ký.']);
+            }
 
-        if ($hoatDong->so_luong_toi_da && $hoatDong->dangKyHoatDongs()->whereIn('trang_thai', ['pending', 'approved', 'attended'])->count() >= $hoatDong->so_luong_toi_da) {
-            throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động đã đủ số lượng.']);
-        }
+            if ($hoatDong->khoas()->exists() && ! $hoatDong->khoas()->whereKey($sinhVien->lop->khoa_id)->exists()) {
+                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động không áp dụng cho khoa của sinh viên.']);
+            }
 
-        return DangKyHoatDong::firstOrCreate(
-            ['hoat_dong_id' => $hoatDong->id, 'sinh_vien_id' => $sinhVien->id],
-            ['trang_thai' => 'pending']
-        );
+            if ($hoatDong->so_luong_toi_da && $hoatDong->dangKyHoatDongs()->whereIn('trang_thai', ['pending', 'approved', 'attended'])->count() >= $hoatDong->so_luong_toi_da) {
+                throw ValidationException::withMessages(['hoat_dong' => 'Hoạt động đã đủ số lượng.']);
+            }
+
+            return DangKyHoatDong::firstOrCreate(
+                ['hoat_dong_id' => $hoatDong->id, 'sinh_vien_id' => $sinhVien->id],
+                ['trang_thai' => 'pending']
+            );
+        });
     }
 
     public function approve(DangKyHoatDong $registration, User $user, string $status = 'approved'): DangKyHoatDong

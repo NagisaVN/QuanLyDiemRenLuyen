@@ -72,16 +72,43 @@
                                     @can('export reports')
                                         <a class="btn btn-sm btn-outline-success" href="{{ route('admin.dot-danh-gia.export', $dot) }}">Xuất Excel</a>
                                     @endcan
-                                @elseif ($effectiveStatus === 'draft')
+                                @else
                                     @can('manage_dot_danh_gia')
                                         <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.dot-danh-gia.edit', $dot) }}">Sửa</a>
                                     @endcan
+
+                                    @if ($effectiveStatus === 'open')
+                                        @can('close_dot_danh_gia')
+                                            <form method="POST" action="{{ route('admin.dot-danh-gia.close', $dot) }}">
+                                                @csrf
+                                                <button class="btn btn-sm btn-outline-dark" type="submit">Đóng</button>
+                                            </form>
+                                        @endcan
+                                    @elseif ($effectiveStatus === 'closed')
+                                        @can('open_dot_danh_gia')
+                                            <form method="POST" action="{{ route('admin.dot-danh-gia.open', $dot) }}">
+                                                @csrf
+                                                <button class="btn btn-sm btn-outline-success" type="submit">Mở lại</button>
+                                            </form>
+                                        @endcan
+                                        @can('publish_dot_danh_gia')
+                                            <form method="POST" action="{{ route('admin.dot-danh-gia.publish', $dot) }}" onsubmit="return confirm('Công bố kết quả và khóa các phiếu của đợt này?')">
+                                                @csrf
+                                                <button class="btn btn-sm btn-outline-primary" type="submit">Công bố</button>
+                                            </form>
+                                        @endcan
+                                    @endif
+
                                     @can('manage_dot_danh_gia')
-                                        <form method="POST" action="{{ route('admin.dot-danh-gia.destroy', $dot) }}" onsubmit="return confirm('Xóa đợt đánh giá này?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button>
-                                        </form>
+                                        @if ($dot->phieu_danh_gias_count === 0)
+                                            <form method="POST" action="{{ route('admin.dot-danh-gia.destroy', $dot) }}" onsubmit="return confirm('Xóa đợt đánh giá này?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button>
+                                            </form>
+                                        @else
+                                            <button class="btn btn-sm btn-outline-danger" type="button" disabled title="Đợt đã có phiếu đánh giá nên không thể xóa">Xóa</button>
+                                        @endif
                                     @endcan
                                 @endif
                             </div>

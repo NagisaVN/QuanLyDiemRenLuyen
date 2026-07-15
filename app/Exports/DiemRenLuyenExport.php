@@ -4,19 +4,18 @@ namespace App\Exports;
 
 use App\Models\DiemRenLuyen;
 use App\Models\DotDanhGia;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class DiemRenLuyenExport implements FromCollection, WithHeadings, WithMapping
+class DiemRenLuyenExport implements FromQuery, WithHeadings, WithMapping
 {
     public function __construct(
         private readonly ?DotDanhGia $dotDanhGia = null,
         private readonly ?int $hocKyId = null
-    ) {
-    }
+    ) {}
 
-    public function collection()
+    public function query()
     {
         return DiemRenLuyen::query()
             ->with(['sinhVien.lop.khoa', 'hocKy.namHoc', 'phieuDanhGia.dotDanhGia'])
@@ -25,8 +24,7 @@ class DiemRenLuyenExport implements FromCollection, WithHeadings, WithMapping
                 fn ($formQuery) => $formQuery->where('dot_danh_gia_id', $this->dotDanhGia->id)
             ))
             ->when($this->hocKyId, fn ($query) => $query->where('hoc_ky_id', $this->hocKyId))
-            ->latest()
-            ->get();
+            ->latest();
     }
 
     public function headings(): array

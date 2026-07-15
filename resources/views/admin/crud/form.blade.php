@@ -34,6 +34,13 @@
                             <option value="{{ $id }}" data-role-name="{{ $options['role_names'][$id] ?? '' }}" @selected($item->exists && $item->roles->contains('id', $id))>{{ $label }}</option>
                         @endforeach
                     </select>
+                @elseif ($type === 'permissions')
+                    <label class="form-label">{{ $field['label'] }}</label>
+                    <select class="form-select" name="permissions[]" multiple>
+                        @foreach ($options['permissions'] as $id => $label)
+                            <option value="{{ $id }}" @selected($item->exists && $item->permissions->contains('id', $id))>{{ $label }}</option>
+                        @endforeach
+                    </select>
                 @elseif ($type === 'select')
                     <label class="form-label" for="{{ $name }}">{{ $field['label'] }}</label>
                     <select class="form-select" id="{{ $name }}" name="{{ $name }}">

@@ -13,8 +13,6 @@ class CheckGvcnReviewPeriod
     public function handle(Request $request, Closure $next): Response
     {
         $service = app(DotDanhGiaService::class);
-        $service->syncAll();
-
         $phieu = $request->route('phieu');
         $minhChung = $request->route('minhChung');
         $dot = $phieu instanceof PhieuDanhGia
